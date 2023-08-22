@@ -41,22 +41,24 @@ args = parser.parse_args()
 #############
 # functions #
 #############
-# split all count columns and record counts as integers
-# order in SYNC files is A, T, C, G, N, del
-# here, I ignore Ns
 def get_sync_counts(sync_site_counts):
-    count_list = []
+    # split all count columns and record counts as integers
+    # order in SYNC files is A, T, C, G, N, del
+
+    sync_count_list = []
     for count in sync_site_counts:
         count = count.split(":")
         count = list(map(int, count))
         # n_count = count[4]
         # non_n_count = count[0:4] + count[5:]
-        count_list.append(count)
+        sync_count_list.append(count)
 
-    return count_list
+    return sync_count_list
 
 
 def remove_n_count(count):
+    # remove N count from list of counts
+
     n_count = count[4]
     non_n_count = count[0:4] + count[5:]
 
@@ -99,23 +101,27 @@ def check_allele_num(sync_count_list, dpth_pass_list):
         return []
 
 
-# def check_allelic_depth(sync_count_list, dpth_pass_list):
-#     # check depth of alleles in individual pops
-#     ad_list = []
-#     for count in sync_count_list:
-#         allele_depth = [count[i] for i in alleles]
-#         alleles_present = [i for i in allele_depth if i > args.min_allele_depth]
-#         ad_list.append(len(alleles_present))
-#
-#     # site is biallelic?
-#     biallelic_count = [True for i in ad_list if i == 2]
-#     biallelic = any(biallelic_count)
-#
-#     # site is multiallelic?
-#     multiallelic_count = [True for i in ad_list if i > 2]
-#     multiallelic = any(multiallelic_count)
-#
-#     return [ad_list, biallelic, multiallelic]
+def check_pop_alleles(sync_count_list, dpth_pass_list, called_alleles):
+    # check depth of alleles in individual pops
+    # **** THIS IS REALLY BAD
+
+    # remove pops below threshold depth
+    passing_dpth = [i for i, e in enumerate(dpth_pass_list) if e == 1]
+    filtered_count_list = [sync_count_list[i] for i in passing_dpth]
+
+    if len(filtered_count_list) != 0:
+        ad_list = []
+        for count in filtered_count_list:
+            ad_list.append([i for i in called_alleles if count[i] >= args.min_allele_depth])
+
+        ad_len_list = []
+        for i in ad_list:
+            ad_len_list.append(len(i))
+
+        if ad_len_list.count(2) > 1:
+            return True
+        else:
+            return False
 
 
 def filter_triallelic(sync_count_list):
@@ -143,6 +149,20 @@ def filter_triallelic(sync_count_list):
     return edited_list
 
 
+# calculate Nei's dXY between two populations
+# corresponds to raw dXY in David's SlidingWindows program
+def get_dxy(p1, p2):
+    dxy = (p1 * (1 - p2)) + (p2 * (1 - p1))
+    return dxy
+
+
+# calculate pi-within for a given population
+# **** implement adjustments for binomial sampling (See SW documentation)
+def get_piw(p1):
+    piw = 2 * p1 * (1 - p1)
+    return piw
+
+
 ########
 # main #
 ########
@@ -162,7 +182,6 @@ with open(args.file) as f:
         count_list = get_sync_counts(site_counts)
 
         # read depth checks
-
         dpth_dict = {}
         pop_dpth = check_read_depth(count_list)
         # retain for later window averaging
@@ -183,5 +202,8 @@ with open(args.file) as f:
             alleles = check_allele_num(count_list, pop_dpth)
 
         # if biallelic, proceed with calculations
+        # **** before proceeding, need to deal with min_allele_pops
+        # **** it is only here that I start to ignore lines below read depth threshold, does that make sense?
         if len(alleles) == 2:
-            print(line)
+            if check_pop_alleles(count_list, pop_dpth, alleles):
+                print(line)
