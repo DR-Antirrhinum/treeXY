@@ -60,17 +60,15 @@ def initialise_windows():
             i = i.strip("\n")
             i = i.split("\t")
             # genomic position
-            pos = i[1]
-        max_pos = int(pos)
+            p = i[1]
+        max_pos = int(p)
 
     window_size = int(args.window_size)
-    window_slide = int(args.window_slide)
+    window_overlap = int(args.window_overlap)
+    window_slide = window_size - window_overlap
 
     # initialise window_dict of correct length
     tot_windows = maths.floor(max_pos / window_slide)
-
-    # initialise list of all coords, including non-biallelic
-    # all_coords = [n for n in range(1, max_pos)]
 
     window_dict = {}
     for i in range(0, tot_windows):
@@ -81,6 +79,7 @@ def initialise_windows():
         window_dict[range(start_coord, end_coord)] = [[], [], []]
 
     return window_dict
+
 
 def get_sync_counts(sync_site_counts):
     # split all count columns and record counts as integers
