@@ -1,25 +1,25 @@
 import random
 import itertools
 from argparse import ArgumentParser
-# import math as maths
+import math as maths
 
 ##########################
 # command line arguments #
 ##########################
-parser = ArgumentParser(prog="get_tree_height",
-                        description="Find all trees matching a root division pattern")
+parser = ArgumentParser(prog="treeXY",
+                        description="Calculate pi-statistics, and compute UPGMA trees, from mapped pool-seq data")
 
 parser.add_argument("-f", "--file",
                     required=True,
-                    help="Input biallelic SYNC file to be processed. ",
+                    help="Input SYNC file to be processed.",
                     metavar="sync_file")
 
-parser.add_argument("-p", "--pops",
-                    required=False,
-                    help="Input pop file describing the pools. "
-                         "Column 1 is pop names, column 2 is number in pool, and "
-                         "column 3 is 1/2 grouping (or 0 to exclude).",
-                    metavar="pop_file")
+# parser.add_argument("-p", "--pops",
+#                     required=False,
+#                     help="Input pop file describing the pools. "
+#                          "Column 1 is pop names, column 2 is number in pool, and "
+#                          "column 3 is 1/2 grouping (or 0 to exclude).",
+#                     metavar="pop_file")
 
 parser.add_argument("-m", "--min_depth",
                     default=15,
@@ -37,40 +37,50 @@ parser.add_argument("-A", "--min_allele_pops",
                     default=2,
                     help="Minimum number of populations required for an allele call")
 
+parser.add_argument("-w", "--window_size",
+                    default=10000,
+                    help="Size of sliding window")
+
+parser.add_argument("-o", "--window_overlap",
+                    default=9000,
+                    help="Overlap of consecutive sliding windows")
+
 args = parser.parse_args()
 
 
 #############
 # functions #
 #############
-# def initialise_windows():
-#     # windows
-#     # check the total number of windows
-#     with open(args.file) as f:
-#         for line in f:
-#             # strip trailing newline
-#             line = line.strip("\n")
-#             line = line.split("\t")
-#             # genomic position
-#             pos = line[1]
-#         max_pos = int(pos)
-#
-#     window_size = int(args.window_size)
-#     window_slide = int(args.window_slide)
-#
-#     # initialise window_dict of correct length
-#     tot_windows = maths.floor(max_pos / window_slide)
-#
-#     # initialise list of all coords, including non-biallelic
-#     # all_coords = [n for n in range(1, max_pos)]
-#
-#     window_dict = {}
-#     for i in range(0, tot_windows):
-#         start_coord = i * window_slide
-#         end_coord = start_coord + window_size + 1
-#         if end_coord > max_pos:
-#             end_coord = max_pos + 1
-#         window_dict[range(start_coord, end_coord)] = [[], [], []]
+def initialise_windows():
+    # windows
+    # check the total number of windows
+    with open(args.file) as f:
+        for i in f:
+            # strip trailing newline
+            i = i.strip("\n")
+            i = i.split("\t")
+            # genomic position
+            pos = i[1]
+        max_pos = int(pos)
+
+    window_size = int(args.window_size)
+    window_slide = int(args.window_slide)
+
+    # initialise window_dict of correct length
+    tot_windows = maths.floor(max_pos / window_slide)
+
+    # initialise list of all coords, including non-biallelic
+    # all_coords = [n for n in range(1, max_pos)]
+
+    window_dict = {}
+    for i in range(0, tot_windows):
+        start_coord = i * window_slide
+        end_coord = start_coord + window_size + 1
+        if end_coord > max_pos:
+            end_coord = max_pos + 1
+        window_dict[range(start_coord, end_coord)] = [[], [], []]
+
+    return window_dict
 
 def get_sync_counts(sync_site_counts):
     # split all count columns and record counts as integers
@@ -266,8 +276,8 @@ def get_site_tree_stats():
 ##########
 # treeXY #
 ##########
-with open(args.file) as f:
-    for line in f:
+with open(args.file) as file:
+    for line in file:
         # strip trailing newline
         line = line.strip("\n")
         line = line.split("\t")
