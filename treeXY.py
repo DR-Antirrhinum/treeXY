@@ -79,7 +79,7 @@ def initialise_windows():
         # three empty lists, to be populated with pi-w, piT, and dXY
         windows[range(start_coord, end_coord)] = [[], [], []]
 
-    return windows
+    return [windows, max_pos]
 
 
 def get_sync_counts(sync_site_counts):
@@ -268,7 +268,7 @@ def get_all_pop_piw(pop_names, dpth_pass_pops, freqs_dict):
     pop_piw_dict = {}
     # create piw keys for each pop
     for pop in pop_names:
-        pop_piw_dict["piw_" + pop] = ""
+        pop_piw_dict["piw_" + pop] = None
     for pop in dpth_pass_pops:
         pop = pop_names[pop]
         pop_pq = freqs_dict[pop]
@@ -284,13 +284,13 @@ def get_all_pop_pit_dxy(pop_names, dpth_pass_comps, freqs_dict):
     # create piT keys for each pop
     pit_keys = ["piT_" + i + "_" + j for i, j in itertools.combinations(pop_names, 2)]
     for i in pit_keys:
-        pop_pit_dict[i] = ""
+        pop_pit_dict[i] = None
 
     pop_dxy_dict = {}
     # create piT keys for each pop
     dxy_keys = ["dXY_" + i + "_" + j for i, j in itertools.combinations(pop_names, 2)]
     for i in dxy_keys:
-        pop_dxy_dict[i] = ""
+        pop_dxy_dict[i] = None
 
     for comp in dpth_pass_comps:
         pop1 = pop_names[comp[0]]
@@ -326,6 +326,42 @@ def get_site_stats(alleles, count_list, pop_names, pop_dpth):
     return [pop_piw_dict, pop_pit_dict, pop_dxy_dict]
 
 
+def dict_to_vals(pop_dict):
+    # print stats from dict
+    val_list = []
+    for val in pop_dict.values():
+        val_list.append(val)
+
+    return val_list
+
+
+def stats_to_windows(curr_window_dict, curr_pos, w_max_pos, piw, pit, dxy):
+    # which windows does this position fall into?
+    min_w_start = int(curr_pos) - int(args.window_size)
+    if min_w_start < 0:
+        min_w_start = 0
+
+    # how many bp does the window move by?
+    w_slide = int(args.window_size) - int(args.window_overlap)
+
+    min_w_index = maths.ceil(min_w_start / w_slide)
+    # highest poss window start is the last window with a start value < pos
+    max_w_index = maths.floor(int(curr_pos) / w_slide)
+    for i in range(min_w_index, max_w_index + 1):
+        w_start = i * w_slide
+        w_end = w_start + int(args.window_size) + 1
+        if w_end > w_max_pos:
+            w_end = w_max_pos + 1
+        if (w_end - w_start) > w_slide:
+            range_key = range(w_start, w_end)
+            # **** for now, I will append vals, but consider using dicts to retain pop_names
+            curr_window_dict[range_key][0].append(piw)
+            curr_window_dict[range_key][1].append(pit)
+            curr_window_dict[range_key][2].append(dxy)
+
+    return curr_window_dict
+
+
 def get_site_trees():
     pass
 
@@ -338,7 +374,9 @@ def get_site_tree_stats():
 # treeXY #
 ##########
 
-window_dict = initialise_windows()
+window_details = initialise_windows()
+window_dict = window_details[0]
+max_pos = window_details[1]
 
 # dict to store all stats for each position
 pos_stats_dict = {}
@@ -395,25 +433,53 @@ with open(args.file) as file:
             pos_stats_dict[pos].append(pop_piw_dict)
             pos_stats_dict[pos].append(pop_pit_dict)
             pos_stats_dict[pos].append(pop_dxy_dict)
+            # stats to window(s)
+            # **** need to generate vals lists before populating window dict
+            pos_piw_vals = dict_to_vals(pop_piw_dict)
+            pos_pit_vals = dict_to_vals(pop_pit_dict)
+            pos_dxy_vals = dict_to_vals(pop_dxy_dict)
+            window_dict = stats_to_windows(window_dict, pos, max_pos, pos_piw_vals, pos_pit_vals, pos_dxy_vals)
+
+for key in window_dict.keys():
+    # need to take mean of each column for each window, for piw and dxy
+    window_piw_vals = window_dict[key][0]
+    window_piw_sums = [sum(filter(None, i)) for i in zip(*window_piw_vals)]
+
+    window_pit_vals = window_dict[key][1]
+    window_pit_sums = [sum(filter(None, i)) for i in zip(*window_pit_vals)]
+
+    window_dxy_vals = window_dict[key][2]
+    window_dxy_sums = [sum(filter(None, i)) for i in zip(*window_dxy_vals)]
+
+    window_piw_means = [i / len(window_piw_vals) for i in window_piw_sums]
+    window_pit_means = [i / len(window_pit_vals) for i in window_pit_sums]
+    window_dxy_means = [i / len(window_dxy_vals) for i in window_dxy_sums]
+
+    # convert to string and print
+    window_piw_means = list(map(str, window_piw_means))
+    window_pit_means = list(map(str, window_pit_means))
+    window_dxy_means = list(map(str, window_dxy_means))
+    print(scaff + "," + str(min(key)) + "," + str(max(key)) + "," + str(len(window_piw_vals)) + "," + ",".join(
+        window_piw_means) + "," + ",".join(window_pit_means) + "," + ",".join(window_dxy_means))
 
     # print stats from dict
-    for key in pos_stats_dict.keys():
-        pos = key
-        piw_vals = []
-        pit_vals = []
-        dxy_vals = []
-        for entry in pos_stats_dict[key]:
-            for sub_key in entry:
-                if "piw" in sub_key:
-                    piw_vals.append(entry[sub_key])
-                if "piT" in sub_key:
-                    pit_vals.append(entry[sub_key])
-                if "dXY" in sub_key:
-                    dxy_vals.append(entry[sub_key])
-
-        # convert to strings
-        piw_vals = list(map(str, piw_vals))
-        pit_vals = list(map(str, pit_vals))
-        dxy_vals = list(map(str, dxy_vals))
-
-        print(pos + "," + ",".join(piw_vals) + "," + ",".join(pit_vals) + "," + ",".join(dxy_vals))
+    # for key in pos_stats_dict.keys():
+    #     pos = key
+    #     all_piw_vals = []
+    #     all_pit_vals = []
+    #     all_dxy_vals = []
+    #     for entry in pos_stats_dict[key]:
+    #         for sub_key in entry:
+    #             if "piw" in sub_key:
+    #                 all_piw_vals.append(entry[sub_key])
+    #             if "piT" in sub_key:
+    #                 all_pit_vals.append(entry[sub_key])
+    #             if "dXY" in sub_key:
+    #                 all_dxy_vals.append(entry[sub_key])
+    #
+    #     # convert to strings
+    #     all_piw_vals = list(map(str, all_piw_vals))
+    #     all_pit_vals = list(map(str, all_pit_vals))
+    #     all_dxy_vals = list(map(str, all_dxy_vals))
+    #
+    #     print(pos + "," + ",".join(all_piw_vals) + "," + ",".join(all_pit_vals) + "," + ",".join(all_dxy_vals))
