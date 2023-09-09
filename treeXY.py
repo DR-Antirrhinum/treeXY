@@ -70,15 +70,16 @@ def initialise_windows():
     # initialise window_dict of correct length
     tot_windows = maths.floor(max_pos / window_slide)
 
-    window_dict = {}
+    windows = {}
     for i in range(0, tot_windows):
         start_coord = i * window_slide
         end_coord = start_coord + window_size + 1
         if end_coord > max_pos:
             end_coord = max_pos + 1
-        window_dict[range(start_coord, end_coord)] = [[], [], []]
+        # three empty lists, to be populated with pi-w, piT, and dXY
+        windows[range(start_coord, end_coord)] = [[], [], []]
 
-    return window_dict
+    return windows
 
 
 def get_sync_counts(sync_site_counts):
@@ -260,8 +261,67 @@ def get_pit(p1, p2, q1, q2):
     return pit
 
 
-def get_site_stats():
-    pass
+# calculate piw across list of valid pops
+def get_all_pop_piw(pop_names, dpth_pass_pops, freqs_dict):
+    pop_piw_dict = {}
+    # create piw keys for each pop
+    for pop in pop_names:
+        pop_piw_dict["piw_" + pop] = ""
+    for pop in dpth_pass_pops:
+        pop = pop_names[pop]
+        pop_pq = freqs_dict[pop]
+        pop_piw = get_piw(pop_pq[0])
+        pop_piw_dict["piw_" + pop] = pop_piw
+
+    return pop_piw_dict
+
+
+# calculate stats for valid pops / comps
+def get_all_pop_pit_dxy(pop_names, dpth_pass_comps, freqs_dict):
+    pop_pit_dict = {}
+    # create piT keys for each pop
+    pit_keys = ["piT_" + i + "_" + j for i, j in itertools.combinations(pop_names, 2)]
+    for i in pit_keys:
+        pop_pit_dict[i] = ""
+
+    pop_dxy_dict = {}
+    # create piT keys for each pop
+    dxy_keys = ["dXY_" + i + "_" + j for i, j in itertools.combinations(pop_names, 2)]
+    for i in dxy_keys:
+        pop_dxy_dict[i] = ""
+
+    for comp in dpth_pass_comps:
+        pop1 = pop_names[comp[0]]
+        pop2 = pop_names[comp[1]]
+        pop_1_2 = pop1 + "_" + pop2
+        pop1_pq = freqs_dict[pop1]
+        pop2_pq = freqs_dict[pop2]
+        pops_pit = get_pit(pop1_pq[0], pop2_pq[0], pop1_pq[1], pop2_pq[1])
+        pops_dxy = get_dxy(pop1_pq[0], pop2_pq[0])
+        pop_pit_dict["piT_" + pop_1_2] = pops_pit
+        pop_dxy_dict["dXY_" + pop_1_2] = pops_dxy
+
+    return [pop_pit_dict, pop_dxy_dict]
+
+
+def get_site_stats(alleles, count_list, pop_names, pop_dpth):
+    # initialise dict key
+    pos_stats_dict[pos] = []
+    # calculate p and q for all pops
+    freqs_dict = get_allele_freqs(alleles, count_list, pop_names)
+    # make list of valid pops based on indices of pop_dpth
+    dpth_pass_pops = [i for i, e in enumerate(pop_dpth) if e == 1]
+    # calculate piw for valid pops
+    pop_piw_dict = get_all_pop_piw(pop_names, dpth_pass_pops, freqs_dict)
+
+    # make list of valid comparisons based on indices of pop_dpth
+    dpth_pass_comps = itertools.combinations(dpth_pass_pops, 2)
+    # calculate stats for valid pops / comps
+    pairwise_stats = get_all_pop_pit_dxy(pop_names, dpth_pass_comps, freqs_dict)
+    pop_pit_dict = pairwise_stats[0]
+    pop_dxy_dict = pairwise_stats[1]
+
+    return [pop_piw_dict, pop_pit_dict, pop_dxy_dict]
 
 
 def get_site_trees():
@@ -275,6 +335,12 @@ def get_site_tree_stats():
 ##########
 # treeXY #
 ##########
+
+window_dict = initialise_windows()
+
+# dict to store all stats for each position
+pos_stats_dict = {}
+
 with open(args.file) as file:
     for line in file:
         # strip trailing newline
@@ -312,9 +378,6 @@ with open(args.file) as file:
             # get alleles
             alleles = check_allele_num(count_list, pop_dpth)
 
-        # dict to store all stats for each position
-        pos_stats_dict = {}
-
         # if biallelic, proceed with piT / dXY / tree calculations
         # **** it is only here that I start to ignore lines below read depth threshold, does that make sense?
         # **** I could provide option to output filtered SYNC file here
@@ -322,35 +385,12 @@ with open(args.file) as file:
             if check_pop_alleles(count_list, pop_dpth, alleles, 2):
                 # initialise dict key
                 pos_stats_dict[pos] = []
-                # calculate p and q for all pops
-                freqs_dict = get_allele_freqs(alleles, count_list, pop_names)
-                # make list of valid pops based on indices of pop_dpth
-                dpth_pass_pops = [i for i, e in enumerate(pop_dpth) if e == 1]
-                # calculate piw for valid pops
-                pop_piw_dict = {}
-                for pop in dpth_pass_pops:
-                    pop = pop_names[pop]
-                    pop_pq = freqs_dict[pop]
-                    pop_piw = get_piw(pop_pq[0])
-                    pop_piw_dict["piw_" + pop] = pop_piw
-
+                # get piw, piT, and dXY
+                pop_piw_dict = get_site_stats(alleles, count_list, pop_names, pop_dpth)[0]
+                pop_pit_dict = get_site_stats(alleles, count_list, pop_names, pop_dpth)[1]
+                pop_dxy_dict = get_site_stats(alleles, count_list, pop_names, pop_dpth)[2]
+                # compile stats
                 pos_stats_dict[pos].append(pop_piw_dict)
-
-                # make list of valid comparisons based on indices of pop_dpth
-                dpth_pass_comps = itertools.combinations(dpth_pass_pops, 2)
-                # calculate stats for valid pops / comps
-                pop_pit_dict = {}
-                pop_dxy_dict = {}
-                for comp in dpth_pass_comps:
-                    pop1 = pop_names[comp[0]]
-                    pop2 = pop_names[comp[1]]
-                    pop1_pq = freqs_dict[pop1]
-                    pop2_pq = freqs_dict[pop2]
-                    pops_pit = get_pit(pop1_pq[0], pop2_pq[0], pop1_pq[1], pop2_pq[1])
-                    pops_dxy = get_dxy(pop1_pq[0], pop2_pq[0])
-                    pop_pit_dict["piT_" + pop] = pops_pit
-                    pop_dxy_dict["dXY_" + pop] = pops_dxy
-
                 pos_stats_dict[pos].append(pop_pit_dict)
                 pos_stats_dict[pos].append(pop_dxy_dict)
 
@@ -360,35 +400,13 @@ with open(args.file) as file:
             if check_pop_alleles(count_list, pop_dpth, alleles, 1):
                 # initialise dict key
                 pos_stats_dict[pos] = []
-                # calculate p and q for all pops
-                freqs_dict = get_allele_freqs(alleles, count_list, pop_names)
-                # make list of valid pops based on indices of pop_dpth
-                dpth_pass_pops = [i for i, e in enumerate(pop_dpth) if e == 1]
-                # calculate piw for valid pops
-                pop_piw_dict = {}
-                for pop in dpth_pass_pops:
-                    pop = pop_names[pop]
-                    pop_pq = freqs_dict[pop]
-                    pop_piw = get_piw(pop_pq[0])
-                    pop_piw_dict["piw_" + pop] = pop_piw
-
-                # make list of valid comparisons based on indices of pop_dpth
-                dpth_pass_comps = itertools.combinations(dpth_pass_pops, 2)
-                # calculate stats for valid pops / comps
-                pop_pit_dict = {}
-                pop_dxy_dict = {}
-                for comp in dpth_pass_comps:
-                    pop1 = pop_names[comp[0]]
-                    pop2 = pop_names[comp[1]]
-                    pop_1_2 = pop1 + "_" + pop2
-                    pop1_pq = freqs_dict[pop1]
-                    pop2_pq = freqs_dict[pop2]
-                    pops_pit = get_pit(pop1_pq[0], pop2_pq[0], pop1_pq[1], pop2_pq[1])
-                    pops_dxy = get_dxy(pop1_pq[0], pop2_pq[0])
-                    pop_pit_dict["piT_" + pop_1_2] = pops_pit
-                    pop_dxy_dict["dXY_" + pop_1_2] = pops_dxy
-
+                # get piw, piT, and dXY
+                pop_piw_dict = get_site_stats(alleles, count_list, pop_names, pop_dpth)[0]
+                pop_pit_dict = get_site_stats(alleles, count_list, pop_names, pop_dpth)[1]
+                pop_dxy_dict = get_site_stats(alleles, count_list, pop_names, pop_dpth)[2]
                 # compile stats
                 pos_stats_dict[pos].append(pop_piw_dict)
                 pos_stats_dict[pos].append(pop_pit_dict)
                 pos_stats_dict[pos].append(pop_dxy_dict)
+
+    print(pos_stats_dict)
