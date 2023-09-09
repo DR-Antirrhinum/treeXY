@@ -142,7 +142,7 @@ def check_allele_num(sync_count_list, dpth_pass_list):
         return []
 
 
-def check_pop_alleles(sync_count_list, dpth_pass_list, called_alleles, expected_alleles):
+def check_pop_alleles(sync_count_list, dpth_pass_list, called_alleles):
     # check depth of alleles in individual pops
     # **** THIS IS REALLY BAD
 
@@ -158,6 +158,8 @@ def check_pop_alleles(sync_count_list, dpth_pass_list, called_alleles, expected_
         ad_len_list = []
         for i in ad_list:
             ad_len_list.append(len(i))
+
+        expected_alleles = len(alleles)
 
         if ad_len_list.count(expected_alleles) >= args.min_allele_pops:
             return True
@@ -382,8 +384,7 @@ with open(args.file) as file:
         # **** it is only here that I start to ignore lines below read depth threshold, does that make sense?
         # **** I could provide option to output filtered SYNC file here
         # **** if monoallelic, piT and dXY will always evaluate to zero, but need to include in output anyway
-        n_alleles = len(alleles)
-        if check_pop_alleles(count_list, pop_dpth, alleles, n_alleles):
+        if check_pop_alleles(count_list, pop_dpth, alleles):
             # initialise dict key
             pos_stats_dict[pos] = []
             # get piw, piT, and dXY
@@ -395,4 +396,24 @@ with open(args.file) as file:
             pos_stats_dict[pos].append(pop_pit_dict)
             pos_stats_dict[pos].append(pop_dxy_dict)
 
-    print(pos_stats_dict)
+    # print stats from dict
+    for key in pos_stats_dict.keys():
+        pos = key
+        piw_vals = []
+        pit_vals = []
+        dxy_vals = []
+        for entry in pos_stats_dict[key]:
+            for sub_key in entry:
+                if "piw" in sub_key:
+                    piw_vals.append(entry[sub_key])
+                if "piT" in sub_key:
+                    pit_vals.append(entry[sub_key])
+                if "dXY" in sub_key:
+                    dxy_vals.append(entry[sub_key])
+
+        # convert to strings
+        piw_vals = list(map(str, piw_vals))
+        pit_vals = list(map(str, pit_vals))
+        dxy_vals = list(map(str, dxy_vals))
+
+        print(pos + "," + ",".join(piw_vals) + "," + ",".join(pit_vals) + "," + ",".join(dxy_vals))
