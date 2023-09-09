@@ -378,35 +378,21 @@ with open(args.file) as file:
             # get alleles
             alleles = check_allele_num(count_list, pop_dpth)
 
-        # if biallelic, proceed with piT / dXY / tree calculations
+        # proceed with piT / dXY / tree calculations for biallelic and monoallelic sites
         # **** it is only here that I start to ignore lines below read depth threshold, does that make sense?
         # **** I could provide option to output filtered SYNC file here
-        if len(alleles) == 2:
-            if check_pop_alleles(count_list, pop_dpth, alleles, 2):
-                # initialise dict key
-                pos_stats_dict[pos] = []
-                # get piw, piT, and dXY
-                pop_piw_dict = get_site_stats(alleles, count_list, pop_names, pop_dpth)[0]
-                pop_pit_dict = get_site_stats(alleles, count_list, pop_names, pop_dpth)[1]
-                pop_dxy_dict = get_site_stats(alleles, count_list, pop_names, pop_dpth)[2]
-                # compile stats
-                pos_stats_dict[pos].append(pop_piw_dict)
-                pos_stats_dict[pos].append(pop_pit_dict)
-                pos_stats_dict[pos].append(pop_dxy_dict)
-
-        # if monoallelic, calculate piw
-        # **** piT and dXY will always evaluate to zero, but need to include in output anyway
-        if len(alleles) == 1:
-            if check_pop_alleles(count_list, pop_dpth, alleles, 1):
-                # initialise dict key
-                pos_stats_dict[pos] = []
-                # get piw, piT, and dXY
-                pop_piw_dict = get_site_stats(alleles, count_list, pop_names, pop_dpth)[0]
-                pop_pit_dict = get_site_stats(alleles, count_list, pop_names, pop_dpth)[1]
-                pop_dxy_dict = get_site_stats(alleles, count_list, pop_names, pop_dpth)[2]
-                # compile stats
-                pos_stats_dict[pos].append(pop_piw_dict)
-                pos_stats_dict[pos].append(pop_pit_dict)
-                pos_stats_dict[pos].append(pop_dxy_dict)
+        # **** if monoallelic, piT and dXY will always evaluate to zero, but need to include in output anyway
+        n_alleles = len(alleles)
+        if check_pop_alleles(count_list, pop_dpth, alleles, n_alleles):
+            # initialise dict key
+            pos_stats_dict[pos] = []
+            # get piw, piT, and dXY
+            pop_piw_dict = get_site_stats(alleles, count_list, pop_names, pop_dpth)[0]
+            pop_pit_dict = get_site_stats(alleles, count_list, pop_names, pop_dpth)[1]
+            pop_dxy_dict = get_site_stats(alleles, count_list, pop_names, pop_dpth)[2]
+            # compile stats
+            pos_stats_dict[pos].append(pop_piw_dict)
+            pos_stats_dict[pos].append(pop_pit_dict)
+            pos_stats_dict[pos].append(pop_dxy_dict)
 
     print(pos_stats_dict)
