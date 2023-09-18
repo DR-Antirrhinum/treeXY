@@ -80,13 +80,17 @@ with open(args.file) as file:
         pop_names = [str(i) for i in range(1, len(count_list) + 1)]
 
         # read depth checks
-        dpth_dict = {}
+        # dpth_dict = {}
         pop_dpth = tf.check_read_depth(count_list)
         # retain for later window averaging
         # dpth_dict[pos] = pop_dpth
 
-        # get alleles
-        alleles = tf.check_allele_num(count_list, pop_dpth)
+        # get all possible alleles
+        # **** maybe instead of summing, I should do the per-pop depth measuring from the start?
+        # **** otherwise, I have to redefine alleles later
+        allele_stats = tf.check_allele_num(count_list, pop_dpth)
+        pop_dpth = allele_stats[0]
+        alleles = allele_stats[1]
 
         # print("starting position " + pos)
         # print(tracemalloc.get_traced_memory())
@@ -100,7 +104,9 @@ with open(args.file) as file:
             site_counts = line[3:]
             count_list = tf.get_sync_counts(site_counts)
             # get alleles
-            alleles = tf.check_allele_num(count_list, pop_dpth)
+            allele_stats = tf.check_allele_num(count_list, pop_dpth)
+            pop_dpth = allele_stats[0]
+            alleles = allele_stats[1]
 
         # print("completed multiallelic filtering for position " + pos)
         # print(tracemalloc.get_traced_memory())
@@ -110,7 +116,10 @@ with open(args.file) as file:
         # **** I could provide option to output filtered SYNC file here
         # **** if monoallelic, piT and dXY will always evaluate to zero, but need to include in output anyway
         # print(tf.check_pop_allele_depth(pop_dpth, site_counts, alleles))
-        if tf.check_pop_alleles(count_list, pop_dpth, alleles):
+
+        if len(alleles) > 0:
+            # **** another check required here?
+
             # initialise dict key
             # print(pos, "PREDICT", tracemalloc.get_traced_memory())
             # **** creating this dict entry has massive memory cost in some instances
@@ -144,7 +153,7 @@ with open(args.file) as file:
             # print("stats loop completed")
             # print(tracemalloc.get_traced_memory())
 
-        # print("pos loop " + pos + " completed. Moving to next position")
+            # print("pos loop " + pos + " completed. Moving to next position")
 
 piw_headers = ["piw_" + name for name in pop_names]
 pit_headers = ["_".join(pair) for pair in list(itertools.combinations(pop_names, 2))]
