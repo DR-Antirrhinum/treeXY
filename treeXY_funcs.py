@@ -113,11 +113,28 @@ def remove_n_count(count):
     return non_n_count
 
 
+def remove_low_count(count):
+    # remove counts below args threshold from list of counts
+
+    new_counts = []
+    for base in count:
+        if base < args.min_allele_depth:
+            new_counts.append(0)
+        else:
+            new_counts.append(base)
+
+    # print(pos, "remove_n_count", tracemalloc.get_traced_memory())
+
+    return new_counts
+
+
 def check_read_depth(sync_count_list):
     # return list: 1 if pop >= threshold depth, 0 otherwise
 
     depth_list = []
     for count in sync_count_list:
+        # **** remove bases below args threshold
+        count = remove_low_count(count)
         count = remove_n_count(count)
         if args.min_depth <= sum(count) <= args.max_depth:
             depth_list.append(1)
@@ -286,8 +303,6 @@ def get_all_pop_pit_dxy(pop_names, dpth_pass_comps, freqs_dict):
         pop_1_2 = pop1 + "_" + pop2
         pop1_pq = freqs_dict[pop1]
         pop2_pq = freqs_dict[pop2]
-        print(pop1_pq[0], pop2_pq[0], pop1_pq[1], pop2_pq[1])
-        quit()
         pops_pit = get_pit(pop1_pq[0], pop2_pq[0], pop1_pq[1], pop2_pq[1])
         pops_dxy = get_dxy(pop1_pq[0], pop2_pq[0])
         pop_pit_dict["piT_" + pop_1_2] = pops_pit
