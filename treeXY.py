@@ -112,11 +112,6 @@ with open(args.file) as file:
             # print(tracemalloc.get_traced_memory())
 
             # proceed with piT / dXY / tree calculations for biallelic and monoallelic sites
-            # **** it is only here that I start to ignore lines below read depth threshold, does that make sense?
-            # **** I could provide option to output filtered SYNC file here
-            # **** if monoallelic, piT and dXY will always evaluate to zero, but need to include in output anyway
-            # print(tf.check_pop_allele_depth(pop_dpth, site_counts, alleles))
-
             if len(alleles) > 0:
                 # get piw, piT, and dXY
                 pos_piw_vals = tf.get_site_stats(alleles, count_list, pop_names, pop_dpth)[0]
@@ -130,33 +125,37 @@ with open(args.file) as file:
                 # print("stats loop completed")
                 # print(tracemalloc.get_traced_memory())
 
-                # print("pos loop " + pos + " completed. Moving to next position")
-
-piw_headers = ["piw_" + name for name in pop_names]
-pit_headers = ["_".join(pair) for pair in list(itertools.combinations(pop_names, 2))]
-pit_headers = ["piT_" + name for name in pit_headers]
-dxy_headers = ["_".join(pair) for pair in list(itertools.combinations(pop_names, 2))]
-dxy_headers = ["dXY_" + name for name in dxy_headers]
-
-print("scaff" + "," + "window_start" + "," + "window_end" + "," + "n_window_sites" + "," +
-      ",".join(piw_headers) + "," + ",".join(pit_headers) + "," + ",".join(dxy_headers))
-
 # print(tracemalloc.get_traced_memory())
 
-for key in window_dict.keys():
-    # need to take mean of each column for each window, for piw and dxy
-    window_piw_vals = window_dict[key][0]
-    window_pit_vals = window_dict[key][1]
-    window_dxy_vals = window_dict[key][2]
+file_name = scaff + "_" + str(args.window_size) + "_" + str(args.window_overlap) + "_treeXY.csv"
 
-    if len(window_piw_vals) > 0 and len(window_pit_vals) > 0 and len(window_dxy_vals) > 0:
-        window_piw_means = tf.vals_to_pop_means(window_piw_vals)
-        window_pit_means = tf.vals_to_pop_means(window_pit_vals)
-        window_dxy_means = tf.vals_to_pop_means(window_dxy_vals)
+# open file for writing
+with open(file_name, "w") as out_file:
+    piw_headers = ["piw_" + name for name in pop_names]
+    pit_headers = ["_".join(pair) for pair in list(itertools.combinations(pop_names, 2))]
+    pit_headers = ["piT_" + name for name in pit_headers]
+    dxy_headers = ["_".join(pair) for pair in list(itertools.combinations(pop_names, 2))]
+    dxy_headers = ["dXY_" + name for name in dxy_headers]
+    # write header
+    out_file.write("scaff" + "," + "window_start" + "," + "window_end" + "," + "n_window_sites" + "," +
+                   ",".join(piw_headers) + "," + ",".join(pit_headers) + "," + ",".join(dxy_headers) + "\n")
 
-        # convert to string and print
-        window_piw_means = list(map(str, window_piw_means))
-        window_pit_means = list(map(str, window_pit_means))
-        window_dxy_means = list(map(str, window_dxy_means))
-        print(scaff + "," + str(min(key)) + "," + str(max(key)) + "," + str(len(window_piw_vals)) + "," +
-              ",".join(window_piw_means) + "," + ",".join(window_pit_means) + "," + ",".join(window_dxy_means))
+    for key in window_dict.keys():
+        # need to take mean of each column for each window, for piw and dxy
+        window_piw_vals = window_dict[key][0]
+        window_pit_vals = window_dict[key][1]
+        window_dxy_vals = window_dict[key][2]
+
+        if len(window_piw_vals) > 0 and len(window_pit_vals) > 0 and len(window_dxy_vals) > 0:
+            window_piw_means = tf.vals_to_pop_means(window_piw_vals)
+            window_pit_means = tf.vals_to_pop_means(window_pit_vals)
+            window_dxy_means = tf.vals_to_pop_means(window_dxy_vals)
+
+            # convert to string and write to file
+            window_piw_means = list(map(str, window_piw_means))
+            window_pit_means = list(map(str, window_pit_means))
+            window_dxy_means = list(map(str, window_dxy_means))
+            # write to file
+            out_file.write(scaff + "," + str(min(key)) + "," + str(max(key)) + "," +
+                           str(len(window_piw_vals)) + "," + ",".join(window_piw_means) + "," +
+                           ",".join(window_pit_means) + "," + ",".join(window_dxy_means) + "\n")
