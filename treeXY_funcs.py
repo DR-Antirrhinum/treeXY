@@ -8,7 +8,7 @@ import math as maths
 # command line arguments #
 ##########################
 parser = ArgumentParser(prog="treeXY",
-                        description="Calculate pi-statistics, and compute UPGMA trees, from mapped pool-seq data")
+                        description="Calculate pi-statistics from mapped pool-seq data")
 
 parser.add_argument("-f", "--file",
                     required=True,
@@ -133,7 +133,7 @@ def check_read_depth(sync_count_list):
 
     depth_list = []
     for count in sync_count_list:
-        # **** remove bases below args threshold
+        # remove bases below args threshold
         count = remove_low_count(count)
         count = remove_n_count(count)
         if args.min_depth <= sum(count) <= args.max_depth:

@@ -82,6 +82,8 @@ with open(args.file) as file:
         # read depth checks
         # dpth_dict = {}
         pop_dpth = tf.check_read_depth(count_list)
+        # in SW, all pops have to have > threshold depth for a site to be included
+        # **** address this more elegantly
         if sum(pop_dpth) == len(pop_names):
             # retain for later window averaging
             # dpth_dict[pos] = pop_dpth
