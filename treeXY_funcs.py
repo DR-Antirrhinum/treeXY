@@ -267,73 +267,56 @@ def get_pit(p1, p2, q1, q2):
 
 # calculate piw across list of valid pops
 def get_all_pop_piw(pop_names, dpth_pass_pops, freqs_dict):
-    pop_piw_dict = {}
-    # create piw keys for each pop
-    for pop in pop_names:
-        pop_piw_dict["piw_" + pop] = None
+    pop_piw_vals = []
     for pop in dpth_pass_pops:
         pop = pop_names[pop]
         pop_pq = freqs_dict[pop]
         pop_piw = get_piw(pop_pq[0])
-        pop_key = "piw_" + pop
-        pop_piw_dict[pop_key] = pop_piw
+        pop_piw_vals.append(pop_piw)
 
     # print(pos, "get_all_pop_piw", tracemalloc.get_traced_memory())
 
-    return pop_piw_dict
+    return pop_piw_vals
 
 
 # calculate stats for valid pops / comps
 def get_all_pop_pit_dxy(pop_names, dpth_pass_comps, freqs_dict):
-    pop_pit_dict = {}
-    # create piT keys for each pop
-    pit_keys = ["piT_" + i + "_" + j for i, j in itertools.combinations(pop_names, 2)]
-    for i in pit_keys:
-        pop_pit_dict[i] = None
-
-    pop_dxy_dict = {}
-    # create piT keys for each pop
-    dxy_keys = ["dXY_" + i + "_" + j for i, j in itertools.combinations(pop_names, 2)]
-    for i in dxy_keys:
-        pop_dxy_dict[i] = None
+    pop_pit_vals = []
+    pop_dxy_vals = []
 
     for comp in dpth_pass_comps:
         pop1 = pop_names[comp[0]]
         pop2 = pop_names[comp[1]]
-        pop_1_2 = pop1 + "_" + pop2
         pop1_pq = freqs_dict[pop1]
         pop2_pq = freqs_dict[pop2]
         pops_pit = get_pit(pop1_pq[0], pop2_pq[0], pop1_pq[1], pop2_pq[1])
         pops_dxy = get_dxy(pop1_pq[0], pop2_pq[0])
-        pop_pit_dict["piT_" + pop_1_2] = pops_pit
-        pop_dxy_dict["dXY_" + pop_1_2] = pops_dxy
+        pop_pit_vals.append(pops_pit)
+        pop_dxy_vals.append(pops_dxy)
 
     # print(pos, "get_all_pop_pit_dxy", tracemalloc.get_traced_memory())
 
-    return [pop_pit_dict, pop_dxy_dict]
+    return [pop_pit_vals, pop_dxy_vals]
 
 
 def get_site_stats(alleles, count_list, pop_names, pop_dpth):
-    # initialise dict key
-    # pos_stats_dict[pos] = []
-    # print(pos, "get_site_stats1", tracemalloc.get_traced_memory())
     # calculate p and q for all pops
     freqs_dict = get_allele_freqs(pop_dpth, alleles, count_list, pop_names)
     # make list of valid pops based on indices of pop_dpth
     dpth_pass_pops = [i for i, e in enumerate(pop_dpth) if e != 0]
     # calculate piw for valid pops
-    pop_piw_dict = get_all_pop_piw(pop_names, dpth_pass_pops, freqs_dict)
+    pop_piw_vals = get_all_pop_piw(pop_names, dpth_pass_pops, freqs_dict)
 
     # make list of valid comparisons based on indices of pop_dpth
     dpth_pass_comps = itertools.combinations(dpth_pass_pops, 2)
     # calculate stats for valid pops / comps
     pairwise_stats = get_all_pop_pit_dxy(pop_names, dpth_pass_comps, freqs_dict)
-    pop_pit_dict = pairwise_stats[0]
-    pop_dxy_dict = pairwise_stats[1]
+    pop_pit_vals = pairwise_stats[0]
+    pop_dxy_vals = pairwise_stats[1]
 
     # print(pos, "get_site_stats2", tracemalloc.get_traced_memory())
 
-    return [pop_piw_dict, pop_pit_dict, pop_dxy_dict]
+    return [pop_piw_vals, pop_pit_vals, pop_dxy_vals]
 
 
 def dict_to_vals(pop_dict):

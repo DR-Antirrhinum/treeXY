@@ -59,9 +59,6 @@ window_details = tf.initialise_windows()
 window_dict = window_details[0]
 max_pos = window_details[1]
 
-# dict to store all stats for each position
-# pos_stats_dict = {}
-
 with open(args.file) as file:
     for line in file:
         # strip trailing newline
@@ -121,35 +118,12 @@ with open(args.file) as file:
             # print(tf.check_pop_allele_depth(pop_dpth, site_counts, alleles))
 
             if len(alleles) > 0:
-                # **** another check required here?
-
-                # initialise dict key
-                # print(pos, "PREDICT", tracemalloc.get_traced_memory())
-                # **** creating this dict entry has massive memory cost in some instances
-                # **** in test.sync, memory always spikes at position 975314 - why that position specifically?
-                # pos_stats_dict[pos] = []
-                # print(pos, "POSTDICT", tracemalloc.get_traced_memory())
                 # get piw, piT, and dXY
-                pop_piw_dict = tf.get_site_stats(alleles, count_list, pop_names, pop_dpth)[0]
-                pop_pit_dict = tf.get_site_stats(alleles, count_list, pop_names, pop_dpth)[1]
-                pop_dxy_dict = tf.get_site_stats(alleles, count_list, pop_names, pop_dpth)[2]
-                # compile stats
-                # pos_stats_dict[pos].append(pop_piw_dict)
-                # pos_stats_dict[pos].append(pop_pit_dict)
-                # pos_stats_dict[pos].append(pop_dxy_dict)
+                pos_piw_vals = tf.get_site_stats(alleles, count_list, pop_names, pop_dpth)[0]
+                pos_pit_vals = tf.get_site_stats(alleles, count_list, pop_names, pop_dpth)[1]
+                pos_dxy_vals = tf.get_site_stats(alleles, count_list, pop_names, pop_dpth)[2]
                 # stats to window(s)
-                # **** need to generate vals lists before populating window dict
-                pos_piw_vals = tf.dict_to_vals(pop_piw_dict)
-                pos_pit_vals = tf.dict_to_vals(pop_pit_dict)
-                pos_dxy_vals = tf.dict_to_vals(pop_dxy_dict)
-
-                # print(pos, "1", tracemalloc.get_traced_memory())
                 window_dict = tf.stats_to_windows(window_dict, pos, max_pos, pos_piw_vals, pos_pit_vals, pos_dxy_vals)
-                # print(pos, "2", tracemalloc.get_traced_memory())
-
-                # print(pos_piw_vals)
-                # print(pos_pit_vals)
-                # print(pos_dxy_vals)
 
                 # print(pos, pos_piw_vals, pos_pit_vals)
 
