@@ -1,9 +1,7 @@
-import random
 import itertools
 # import tracemalloc
 from argparse import ArgumentParser
 import treeXY_funcs as tf
-import math as maths
 
 ##########################
 # command line arguments #
@@ -24,28 +22,42 @@ parser.add_argument("-f", "--file",
 #                     metavar="pop_file")
 
 parser.add_argument("-m", "--min_depth",
+                    type=int,
                     default=15,
                     help="Minimum depth, across all populations, for a site to be included")
 
 parser.add_argument("-M", "--max_depth",
-                    default=500,
+                    type=int,
+                    default=200,
                     help="Maximum depth, across all populations, for a site to be included")
 
 parser.add_argument("-a", "--min_allele_depth",
+                    type=int,
                     default=2,
                     help="Minimum depth for an allele call")
 
 parser.add_argument("-A", "--min_allele_pops",
+                    type=int,
                     default=2,
                     help="Minimum number of populations required for an allele call")
 
 parser.add_argument("-w", "--window_size",
+                    type=int,
                     default=10000,
                     help="Size of sliding window")
 
 parser.add_argument("-o", "--window_overlap",
+                    type=int,
                     default=9000,
                     help="Overlap of consecutive sliding windows")
+
+parser.add_argument("--write_sync",
+                    action="store_true",
+                    help="Write sites passing depth checks to new SYNC file")
+
+parser.add_argument("--write_site_stats",
+                    default=False,
+                    help="Also write pi-within, pi-total, and dXY for individual sites")
 
 args = parser.parse_args()
 
@@ -55,7 +67,7 @@ args = parser.parse_args()
 
 # tracemalloc.start()
 
-window_details = tf.initialise_windows()
+window_details = tf.initialise_windows(args.file, args.window_size, args.window_overlap)
 window_dict = window_details[0]
 max_pos = window_details[1]
 
@@ -77,18 +89,12 @@ with open(args.file) as file:
         pop_names = [str(i) for i in range(1, len(count_list) + 1)]
 
         # read depth checks
-        # dpth_dict = {}
-        pop_dpth = tf.check_read_depth(count_list)
+        pop_dpth = tf.check_read_depth(count_list, args.min_allele_depth, args.min_depth, args.max_depth)
         # in SW, all pops have to have > threshold depth for a site to be included
         # **** address this more elegantly
         if sum(pop_dpth) == len(pop_names):
-            # retain for later window averaging
-            # dpth_dict[pos] = pop_dpth
-
             # get all possible alleles
-            # **** maybe instead of summing, I should do the per-pop depth measuring from the start?
-            # **** otherwise, I have to redefine alleles later
-            allele_stats = tf.check_allele_num(count_list, pop_dpth)
+            allele_stats = tf.check_allele_num(count_list, pop_dpth, args.min_allele_depth)
             pop_dpth = allele_stats[0]
             alleles = allele_stats[1]
 
@@ -104,7 +110,7 @@ with open(args.file) as file:
                 site_counts = line[3:]
                 count_list = tf.get_sync_counts(site_counts)
                 # get alleles
-                allele_stats = tf.check_allele_num(count_list, pop_dpth)
+                allele_stats = tf.check_allele_num(count_list, pop_dpth, args.min_allele_depth)
                 pop_dpth = allele_stats[0]
                 alleles = allele_stats[1]
 
@@ -113,12 +119,16 @@ with open(args.file) as file:
 
             # proceed with piT / dXY / tree calculations for biallelic and monoallelic sites
             if len(alleles) > 0:
+                # optionally, write line to filtered SYNC file
+                if args.write_sync:
+                    print(line)
                 # get piw, piT, and dXY
                 pos_piw_vals = tf.get_site_stats(alleles, count_list, pop_names, pop_dpth)[0]
                 pos_pit_vals = tf.get_site_stats(alleles, count_list, pop_names, pop_dpth)[1]
                 pos_dxy_vals = tf.get_site_stats(alleles, count_list, pop_names, pop_dpth)[2]
                 # stats to window(s)
-                window_dict = tf.stats_to_windows(window_dict, pos, max_pos, pos_piw_vals, pos_pit_vals, pos_dxy_vals)
+                window_dict = tf.stats_to_windows(window_dict, pos, max_pos, pos_piw_vals, pos_pit_vals, pos_dxy_vals,
+                                                  args.window_size, args.window_overlap)
 
                 # print(pos, pos_piw_vals, pos_pit_vals)
 
@@ -127,7 +137,11 @@ with open(args.file) as file:
 
 # print(tracemalloc.get_traced_memory())
 
-file_name = scaff + "_" + str(args.window_size) + "_" + str(args.window_overlap) + "_treeXY.csv"
+# generate file_name
+arg_vals = [str(i) for i in vars(args).values()]
+# ignore filepath arg
+arg_vals = arg_vals[1:]
+file_name = scaff + "_" + "_".join(arg_vals) + "_treeXY.csv"
 
 # open file for writing
 with open(file_name, "w") as out_file:
@@ -137,7 +151,7 @@ with open(file_name, "w") as out_file:
     dxy_headers = ["_".join(pair) for pair in list(itertools.combinations(pop_names, 2))]
     dxy_headers = ["dXY_" + name for name in dxy_headers]
     # write header
-    out_file.write("scaff" + "," + "window_start" + "," + "window_end" + "," + "n_window_sites" + "," +
+    out_file.write("scaffold" + "," + "window_start" + "," + "window_end" + "," + "n_window_sites" + "," +
                    ",".join(piw_headers) + "," + ",".join(pit_headers) + "," + ",".join(dxy_headers) + "\n")
 
     for key in window_dict.keys():

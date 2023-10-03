@@ -1,61 +1,15 @@
-import random
 import itertools
-import tracemalloc
-from argparse import ArgumentParser
+# import tracemalloc
 import math as maths
-
-##########################
-# command line arguments #
-##########################
-parser = ArgumentParser(prog="treeXY",
-                        description="Calculate pi-statistics from mapped pool-seq data")
-
-parser.add_argument("-f", "--file",
-                    required=True,
-                    help="Input SYNC file to be processed.",
-                    metavar="sync_file")
-
-# parser.add_argument("-p", "--pops",
-#                     required=False,
-#                     help="Input pop file describing the pools. "
-#                          "Column 1 is pop names, column 2 is number in pool, and "
-#                          "column 3 is 1/2 grouping (or 0 to exclude).",
-#                     metavar="pop_file")
-
-parser.add_argument("-m", "--min_depth",
-                    default=15,
-                    help="Minimum depth, across all populations, for a site to be included")
-
-parser.add_argument("-M", "--max_depth",
-                    default=500,
-                    help="Maximum depth, across all populations, for a site to be included")
-
-parser.add_argument("-a", "--min_allele_depth",
-                    default=2,
-                    help="Minimum depth for an allele call")
-
-parser.add_argument("-A", "--min_allele_pops",
-                    default=2,
-                    help="Minimum number of populations required for an allele call")
-
-parser.add_argument("-w", "--window_size",
-                    default=10000,
-                    help="Size of sliding window")
-
-parser.add_argument("-o", "--window_overlap",
-                    default=9000,
-                    help="Overlap of consecutive sliding windows")
-
-args = parser.parse_args()
 
 
 #############
 # functions #
 #############
-def initialise_windows():
+def initialise_windows(in_file, w_size, w_overlap):
     # windows
     # check the total number of windows
-    with open(args.file) as f:
+    with open(in_file) as f:
         for i in f:
             # strip trailing newline
             i = i.strip("\n")
@@ -64,8 +18,8 @@ def initialise_windows():
             p = i[1]
         max_pos = int(p)
 
-    window_size = int(args.window_size)
-    window_overlap = int(args.window_overlap)
+    window_size = int(w_size)
+    window_overlap = int(w_overlap)
     window_slide = window_size - window_overlap
 
     # initialise window_dict of correct length
@@ -113,12 +67,12 @@ def remove_n_count(count):
     return non_n_count
 
 
-def remove_low_count(count):
+def remove_low_count(count, min_allele_depth):
     # remove counts below args threshold from list of counts
 
     new_counts = []
     for base in count:
-        if base < args.min_allele_depth:
+        if base < min_allele_depth:
             new_counts.append(0)
         else:
             new_counts.append(base)
@@ -128,15 +82,15 @@ def remove_low_count(count):
     return new_counts
 
 
-def check_read_depth(sync_count_list):
+def check_read_depth(sync_count_list, min_allele_depth, min_depth, max_depth):
     # return list: 1 if pop >= threshold depth, 0 otherwise
 
     depth_list = []
     for count in sync_count_list:
         # remove bases below args threshold
-        count = remove_low_count(count)
+        count = remove_low_count(count, min_allele_depth)
         count = remove_n_count(count)
-        if args.min_depth <= sum(count) <= args.max_depth:
+        if min_depth <= sum(count) <= max_depth:
             depth_list.append(1)
         else:
             depth_list.append(0)
@@ -146,7 +100,7 @@ def check_read_depth(sync_count_list):
     return depth_list
 
 
-def check_allele_num(sync_count_list, dpth_pass_list):
+def check_allele_num(sync_count_list, dpth_pass_list, min_allele_depth):
     # return number of alleles
     # **** alleles should be returned in descending order of frequency (across all pops)
 
@@ -161,7 +115,7 @@ def check_allele_num(sync_count_list, dpth_pass_list):
             # increment with each allele > min_allele_depth
             allele_incr = 0
             for base_i, base in enumerate(count):
-                if base >= args.min_allele_depth:
+                if base >= min_allele_depth:
                     allele_incr += 1
                     allele_inds.append(base_i)
 
@@ -330,21 +284,21 @@ def dict_to_vals(pop_dict):
     return val_list
 
 
-def stats_to_windows(curr_window_dict, curr_pos, w_max_pos, piw, pit, dxy):
+def stats_to_windows(curr_window_dict, curr_pos, w_max_pos, piw, pit, dxy, window_size, window_overlap):
     # which windows does this position fall into?
-    min_w_start = int(curr_pos) - int(args.window_size)
+    min_w_start = int(curr_pos) - int(window_size)
     if min_w_start < 0:
         min_w_start = 0
 
     # how many bp does the window move by?
-    w_slide = int(args.window_size) - int(args.window_overlap)
+    w_slide = int(window_size) - int(window_overlap)
 
     min_w_index = maths.ceil(min_w_start / w_slide)
     # highest poss window start is the last window with a start value < pos
     max_w_index = maths.floor(int(curr_pos) / w_slide)
     for i in range(min_w_index, max_w_index + 1):
         w_start = i * w_slide
-        w_end = w_start + int(args.window_size) + 1
+        w_end = w_start + int(window_size) + 1
         if w_end > w_max_pos:
             w_end = w_max_pos + 1
         if (w_end - w_start) > w_slide:
