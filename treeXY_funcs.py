@@ -220,13 +220,15 @@ def get_pit(p1, p2, q1, q2):
 
 
 # calculate piw across list of valid pops
+# **** I've removed None padding because I'm a pillock
 def get_all_pop_piw(pop_names, dpth_pass_pops, freqs_dict):
-    pop_piw_vals = []
+    pop_piw_vals = [None] * len(pop_names)
     for pop in dpth_pass_pops:
         pop = pop_names[pop]
+        pop_index = pop_names.index(pop)
         pop_pq = freqs_dict[pop]
         pop_piw = get_piw(pop_pq[0])
-        pop_piw_vals.append(pop_piw)
+        pop_piw_vals[pop_index] = pop_piw
 
     # print(pos, "get_all_pop_piw", tracemalloc.get_traced_memory())
 
@@ -235,18 +237,20 @@ def get_all_pop_piw(pop_names, dpth_pass_pops, freqs_dict):
 
 # calculate stats for valid pops / comps
 def get_all_pop_pit_dxy(pop_names, dpth_pass_comps, freqs_dict):
-    pop_pit_vals = []
-    pop_dxy_vals = []
+    dpth_pass_comps = list(dpth_pass_comps)
+    pop_pit_vals = [None] * len(dpth_pass_comps)
+    pop_dxy_vals = [None] * len(dpth_pass_comps)
 
     for comp in dpth_pass_comps:
+        comp_index = dpth_pass_comps.index(comp)
         pop1 = pop_names[comp[0]]
         pop2 = pop_names[comp[1]]
         pop1_pq = freqs_dict[pop1]
         pop2_pq = freqs_dict[pop2]
         pops_pit = get_pit(pop1_pq[0], pop2_pq[0], pop1_pq[1], pop2_pq[1])
         pops_dxy = get_dxy(pop1_pq[0], pop2_pq[0])
-        pop_pit_vals.append(pops_pit)
-        pop_dxy_vals.append(pops_dxy)
+        pop_pit_vals[comp_index] = pops_pit
+        pop_dxy_vals[comp_index] = pops_dxy
 
     # print(pos, "get_all_pop_pit_dxy", tracemalloc.get_traced_memory())
 

@@ -7,7 +7,7 @@ import treeXY_funcs as tf
 # command line arguments #
 ##########################
 parser = ArgumentParser(prog="treeXY",
-                        description="Calculate pi-statistics, and compute UPGMA trees, from mapped pool-seq data")
+                        description="Calculate window-averaged pi-statistics from mapped pool-seq data")
 
 parser.add_argument("-f", "--file",
                     required=True,
@@ -130,7 +130,7 @@ with open(args.file) as file:
                 window_dict = tf.stats_to_windows(window_dict, pos, max_pos, pos_piw_vals, pos_pit_vals, pos_dxy_vals,
                                                   args.window_size, args.window_overlap)
 
-                # print(pos, pos_piw_vals, pos_pit_vals)
+                print(pos, pos_piw_vals, pos_pit_vals)
 
                 # print("stats loop completed")
                 # print(tracemalloc.get_traced_memory())
