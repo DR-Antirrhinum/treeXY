@@ -161,22 +161,23 @@ def filter_triallelic(sync_count_list, scaff, pos, ref):
     return edited_list
 
 
-def get_allele_freqs(dpth_pass_list, allele_inds, sync_count_list, names):
+def get_allele_freqs(allele_inds, sync_count_list, names):
     # *** p should be major allele i.e. most frequent
 
     pop_dict = {}
     for i, count in enumerate(sync_count_list):
         curr_pop = names[i]
-        a1_ind = allele_inds[0]
-        a1_count = count[a1_ind]
-
-        if dpth_pass_list[i] == 2:
+        if len(allele_inds) == 1:
+            a1_ind = allele_inds[0]
+            a1_count = count[a1_ind]
+            a2_count = 0
+        else:
+            a1_ind = allele_inds[0]
+            a1_count = count[a1_ind]
             a2_ind = allele_inds[1]
             a2_count = count[a2_ind]
-        else:
-            a2_count = 0
 
-        if a1_count == 0 & a2_count == 0:
+        if a1_count == 0 and a2_count == 0:
             p = 0
             q = 0
             pop_dict[curr_pop] = [p, q]
@@ -259,7 +260,7 @@ def get_all_pop_pit_dxy(pop_names, dpth_pass_comps, freqs_dict):
 
 def get_site_stats(alleles, count_list, pop_names, pop_dpth):
     # calculate p and q for all pops
-    freqs_dict = get_allele_freqs(pop_dpth, alleles, count_list, pop_names)
+    freqs_dict = get_allele_freqs(alleles, count_list, pop_names)
     # make list of valid pops based on indices of pop_dpth
     dpth_pass_pops = [i for i, e in enumerate(pop_dpth) if e != 0]
     # calculate piw for valid pops

@@ -118,7 +118,7 @@ with open(args.file) as file:
             # print(tracemalloc.get_traced_memory())
 
             # proceed with piT / dXY / tree calculations for biallelic and monoallelic sites
-            if len(alleles) > 0:
+            if len(alleles) > 0 and all([i > 0 for i in pop_dpth]):
                 # optionally, write line to filtered SYNC file
                 if args.write_sync:
                     print(line)
@@ -130,18 +130,30 @@ with open(args.file) as file:
                 window_dict = tf.stats_to_windows(window_dict, pos, max_pos, pos_piw_vals, pos_pit_vals, pos_dxy_vals,
                                                   args.window_size, args.window_overlap)
 
-                print(pos, pos_piw_vals, pos_pit_vals)
-
-                # print("stats loop completed")
-                # print(tracemalloc.get_traced_memory())
+                # wi1 = 10
+                # wi2 = 15
+                # pi1 = 95
+                #
+                # # print(line)
+                # # print(len(pos_pit_vals))
+                #
+                # piw1 = sum(pos_piw_vals[0:14]) / len(pos_piw_vals[0:14])
+                # piw2 = sum(pos_piw_vals[14:]) / len(pos_piw_vals[14:])
+                # piwbar = (piw1 + piw2) / 2
+                # b_list = [13,14,26,27,38,39,49,50,59,60,68,69,76,77,83,84,89,90,94,95,98,99,101,102,103,104]
+                # pit = sum([pos_pit_vals[i] for i in b_list]) / len(b_list)
+                # print(pos, pit)
+                # D = pit - piwbar
+                # if D < 0:
+                #     print(D)
 
 # print(tracemalloc.get_traced_memory())
 
-# generate file_name
-arg_vals = [str(i) for i in vars(args).values()]
-# ignore filepath arg
-arg_vals = arg_vals[1:]
-file_name = scaff + "_" + "_".join(arg_vals) + "_treeXY.csv"
+# generate file_name from args
+h_args = args.min_depth, args.max_depth, args.min_allele_depth, args.min_allele_pops, \
+         args.window_size, args.window_overlap
+h_args = list(map(str, h_args))
+file_name = scaff + "_" + "_".join(h_args) + "_treeXY.csv"
 
 # open file for writing
 with open(file_name, "w") as out_file:
