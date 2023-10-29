@@ -130,23 +130,6 @@ with open(args.file) as file:
                 window_dict = tf.stats_to_windows(window_dict, pos, max_pos, pos_piw_vals, pos_pit_vals, pos_dxy_vals,
                                                   args.window_size, args.window_overlap)
 
-                # wi1 = 10
-                # wi2 = 15
-                # pi1 = 95
-                #
-                # # print(line)
-                # # print(len(pos_pit_vals))
-                #
-                # piw1 = sum(pos_piw_vals[0:14]) / len(pos_piw_vals[0:14])
-                # piw2 = sum(pos_piw_vals[14:]) / len(pos_piw_vals[14:])
-                # piwbar = (piw1 + piw2) / 2
-                # b_list = [13,14,26,27,38,39,49,50,59,60,68,69,76,77,83,84,89,90,94,95,98,99,101,102,103,104]
-                # pit = sum([pos_pit_vals[i] for i in b_list]) / len(b_list)
-                # print(pos, pit)
-                # D = pit - piwbar
-                # if D < 0:
-                #     print(D)
-
 # print(tracemalloc.get_traced_memory())
 
 # generate file_name from args

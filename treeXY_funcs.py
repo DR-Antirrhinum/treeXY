@@ -22,6 +22,13 @@ def initialise_windows(in_file, w_size, w_overlap):
     window_overlap = int(w_overlap)
     window_slide = window_size - window_overlap
 
+    # if window_size >= max_pos, return one window covering entire scaffold
+    wc_window = {}
+    if window_size >= max_pos:
+        wc_window[range(1, max_pos + 1)] = [[], [], []]
+
+        return [wc_window, max_pos]
+
     # initialise window_dict of correct length
     tot_windows = maths.floor(max_pos / window_slide)
 
@@ -290,32 +297,41 @@ def dict_to_vals(pop_dict):
 
 
 def stats_to_windows(curr_window_dict, curr_pos, w_max_pos, piw, pit, dxy, window_size, window_overlap):
-    # which windows does this position fall into?
-    min_w_start = int(curr_pos) - int(window_size)
-    if min_w_start < 0:
-        min_w_start = 0
+    # if window_size >= w_max_pos, there will only be one key encompassing the whole scaffold
+    if window_size >= w_max_pos:
+        curr_window_dict[range(1, w_max_pos + 1)][0].append(piw)
+        curr_window_dict[range(1, w_max_pos + 1)][1].append(pit)
+        curr_window_dict[range(1, w_max_pos + 1)][2].append(dxy)
 
-    # how many bp does the window move by?
-    w_slide = int(window_size) - int(window_overlap)
+        return curr_window_dict
 
-    min_w_index = maths.ceil(min_w_start / w_slide)
-    # highest poss window start is the last window with a start value < pos
-    max_w_index = maths.floor(int(curr_pos) / w_slide)
-    for i in range(min_w_index, max_w_index + 1):
-        w_start = i * w_slide
-        w_end = w_start + int(window_size) + 1
-        if w_end > w_max_pos:
-            w_end = w_max_pos + 1
-        if (w_end - w_start) > w_slide:
-            range_key = range(w_start, w_end)
-            # **** for now, I will append vals, but consider using dicts to retain pop_names
-            curr_window_dict[range_key][0].append(piw)
-            curr_window_dict[range_key][1].append(pit)
-            curr_window_dict[range_key][2].append(dxy)
+    else:
+        # which windows does this position fall into?
+        min_w_start = int(curr_pos) - int(window_size)
+        if min_w_start < 0:
+            min_w_start = 0
 
-    # print(pos, "stats_to_windows", tracemalloc.get_traced_memory())
+        # how many bp does the window move by?
+        w_slide = int(window_size) - int(window_overlap)
 
-    return curr_window_dict
+        min_w_index = maths.ceil(min_w_start / w_slide)
+        # highest poss window start is the last window with a start value < pos
+        max_w_index = maths.floor(int(curr_pos) / w_slide)
+        for i in range(min_w_index, max_w_index + 1):
+            w_start = i * w_slide
+            w_end = w_start + int(window_size) + 1
+            if w_end > w_max_pos:
+                w_end = w_max_pos + 1
+            if (w_end - w_start) > w_slide:
+                range_key = range(w_start, w_end)
+                # **** for now, I will append vals, but consider using dicts to retain pop_names
+                curr_window_dict[range_key][0].append(piw)
+                curr_window_dict[range_key][1].append(pit)
+                curr_window_dict[range_key][2].append(dxy)
+
+        # print(pos, "stats_to_windows", tracemalloc.get_traced_memory())
+
+        return curr_window_dict
 
 
 def vals_to_pop_means(val_list):
