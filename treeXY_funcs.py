@@ -1,6 +1,11 @@
 import itertools
 # import tracemalloc
 import math as maths
+import numpy as np
+import pandas as pd
+import scipy.cluster.hierarchy as shc
+from scipy.spatial import distance_matrix
+from scipy.spatial.distance import squareform
 
 
 #############
@@ -25,7 +30,7 @@ def initialise_windows(in_file, w_size, w_overlap):
     # if window_size >= max_pos, return one window covering entire scaffold
     wc_window = {}
     if window_size >= max_pos:
-        wc_window[range(1, max_pos + 1)] = [[], [], []]
+        wc_window[range(1, max_pos + 1)] = [[], [], [], []]
 
         return [wc_window, max_pos]
 
@@ -39,7 +44,7 @@ def initialise_windows(in_file, w_size, w_overlap):
         if end_coord > max_pos:
             end_coord = max_pos + 1
         # three empty lists, to be populated with pi-w, piT, and dXY
-        windows[range(start_coord, end_coord)] = [[], [], []]
+        windows[range(start_coord, end_coord)] = [[], [], [], []]
 
     # print("initialise_windows", tracemalloc.get_traced_memory())
 
@@ -227,6 +232,18 @@ def get_pit(p1, p2, q1, q2):
     return pit
 
 
+# calculate Nei's D (da) for a given population pair
+def get_da(p1, p2, dxy):
+    piw1 = get_piw(p1)
+    piw2 = get_piw(p2)
+    piw_bar = (piw1 + piw2) / 2
+    da = dxy - piw_bar
+
+    # print("get_pit", tracemalloc.get_traced_memory())
+
+    return da
+
+
 # calculate piw across list of valid pops
 # **** I've removed None padding because I'm a pillock
 def get_all_pop_piw(pop_names, dpth_pass_pops, freqs_dict):
@@ -248,6 +265,7 @@ def get_all_pop_pit_dxy(pop_names, dpth_pass_comps, freqs_dict):
     dpth_pass_comps = list(dpth_pass_comps)
     pop_pit_vals = [None] * len(dpth_pass_comps)
     pop_dxy_vals = [None] * len(dpth_pass_comps)
+    pop_D_vals = [None] * len(dpth_pass_comps)
 
     for comp in dpth_pass_comps:
         comp_index = dpth_pass_comps.index(comp)
@@ -257,12 +275,14 @@ def get_all_pop_pit_dxy(pop_names, dpth_pass_comps, freqs_dict):
         pop2_pq = freqs_dict[pop2]
         pops_pit = get_pit(pop1_pq[0], pop2_pq[0], pop1_pq[1], pop2_pq[1])
         pops_dxy = get_dxy(pop1_pq[0], pop2_pq[0])
+        pops_D = get_da(pop1_pq[0], pop2_pq[0], pops_dxy)
         pop_pit_vals[comp_index] = pops_pit
         pop_dxy_vals[comp_index] = pops_dxy
+        pop_D_vals[comp_index] = pops_D
 
     # print(pos, "get_all_pop_pit_dxy", tracemalloc.get_traced_memory())
 
-    return [pop_pit_vals, pop_dxy_vals]
+    return [pop_pit_vals, pop_dxy_vals, pop_D_vals]
 
 
 def get_site_stats(alleles, count_list, pop_names, pop_dpth):
@@ -279,10 +299,11 @@ def get_site_stats(alleles, count_list, pop_names, pop_dpth):
     pairwise_stats = get_all_pop_pit_dxy(pop_names, dpth_pass_comps, freqs_dict)
     pop_pit_vals = pairwise_stats[0]
     pop_dxy_vals = pairwise_stats[1]
+    pop_D_vals = pairwise_stats[2]
 
     # print(pos, "get_site_stats2", tracemalloc.get_traced_memory())
 
-    return [pop_piw_vals, pop_pit_vals, pop_dxy_vals]
+    return [pop_piw_vals, pop_pit_vals, pop_dxy_vals, pop_D_vals]
 
 
 def dict_to_vals(pop_dict):
@@ -296,12 +317,13 @@ def dict_to_vals(pop_dict):
     return val_list
 
 
-def stats_to_windows(curr_window_dict, curr_pos, w_max_pos, piw, pit, dxy, window_size, window_overlap):
+def stats_to_windows(curr_window_dict, curr_pos, w_max_pos, piw, pit, dxy, D, window_size, window_overlap):
     # if window_size >= w_max_pos, there will only be one key encompassing the whole scaffold
     if window_size >= w_max_pos:
         curr_window_dict[range(1, w_max_pos + 1)][0].append(piw)
         curr_window_dict[range(1, w_max_pos + 1)][1].append(pit)
         curr_window_dict[range(1, w_max_pos + 1)][2].append(dxy)
+        curr_window_dict[range(1, w_max_pos + 1)][3].append(D)
 
         return curr_window_dict
 
@@ -328,6 +350,7 @@ def stats_to_windows(curr_window_dict, curr_pos, w_max_pos, piw, pit, dxy, windo
                 curr_window_dict[range_key][0].append(piw)
                 curr_window_dict[range_key][1].append(pit)
                 curr_window_dict[range_key][2].append(dxy)
+                curr_window_dict[range_key][3].append(D)
 
         # print(pos, "stats_to_windows", tracemalloc.get_traced_memory())
 
@@ -351,8 +374,47 @@ def vals_to_pop_means(val_list):
     return mean_list
 
 
-def get_site_trees():
-    pass
+def get_site_trees(pop_dpth, dxy_vals):
+    pop_pairs = []
+    dpth_pass_pops = [i for i, e in enumerate(pop_dpth) if e != 0]
+    dxy_headers = itertools.combinations(dpth_pass_pops, 2)
+    for i, header in enumerate(dxy_headers):
+        pop1 = header[0]
+        pop2 = header[1]
+        dxy = dxy_vals[i]
+        pop_pairs.append([pop1, pop2, dxy])
+
+    # read pairwise dXY into pandas data frame, and convert to distance matrix
+    df = pd.DataFrame(pop_pairs, columns=["pop1", "pop2", "dXY"])
+    df = df.pivot_table(index='pop1', columns='pop2', values='dXY')
+    df = df.combine_first(df.T)
+    # set diagonal to 0
+    np.fill_diagonal(df.to_numpy(), 0)
+    # convert distance matrix to minimal representation for scipy linkage compatibility
+    dm = squareform(df)
+
+    # UPGMA hierarchical clustering
+    # can be visualised as a tree using shc.dendrogram
+    clusters = shc.linkage(dm, method="average", metric="euclidean")
+
+    # get maximum height at which UPGMA merges populations i.e. the tree height
+    tree_height = max(clusters[0:, 2])
+    second_max = clusters[0:, 2][-2]
+    # shortest root branch = tree height - penultimate cluster height
+    # **** implement piw and Nei's D
+    srb = tree_height - second_max
+
+    # split tree at root, yielding two clusters (root division analysis)
+    # population membership to each cluster is represented as 0 or 1
+    split = list(shc.cut_tree(clusters, n_clusters=2)[0:, 0])
+    split = [n + 1 for n in split]
+
+    # convert items in split list to strings, and join
+    split = list(map(str, split))
+    split = "".join(split)
+
+    # return genomic position, root division summary, and tree height
+    return [split, tree_height, srb]
 
 
 def get_site_tree_stats():
