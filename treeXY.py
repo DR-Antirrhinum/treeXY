@@ -84,7 +84,7 @@ sync_name = sync_name.split("/")[-1]
 h_args = args.min_depth, args.max_depth, args.min_allele_depth, args.min_allele_pops, \
          args.window_size, args.window_overlap
 h_args = list(map(str, h_args))
-file_name = sync_name + "_" + "_".join(h_args) + "_treeXY.csv"
+w_file_name = sync_name + "_" + "_".join(h_args) + "_treeXY.csv"
 
 if args.write_sync:
     f_sync_name = sync_name + "_treeXY_filtered.sync"
@@ -95,6 +95,9 @@ if args.compute_trees:
     site_args = list(map(str, site_args))
     tree_file_name = sync_name + "_" + "_".join(site_args) + "_treeXY_topos.csv"
     open(tree_file_name, "w").close()
+
+# open window output file
+# open(w_file_name, "w").close()
 
 # initialise dict to store window averages
 window_details = tf.initialise_windows(args.file, args.window_size, args.window_overlap)
@@ -176,7 +179,7 @@ with open(args.file) as file:
 # print(tracemalloc.get_traced_memory())
 
 # open file for writing
-with open(file_name, "w") as out_file:
+with open(w_file_name, "w") as out_file:
     piw_headers = ["piw_" + name for name in pop_names]
     pit_headers = ["_".join(pair) for pair in list(itertools.combinations(pop_names, 2))]
     pit_headers = ["piT_" + name for name in pit_headers]

@@ -4,7 +4,7 @@ import math as maths
 import numpy as np
 import pandas as pd
 import scipy.cluster.hierarchy as shc
-from scipy.spatial import distance_matrix
+# from scipy.spatial import distance_matrix
 from scipy.spatial.distance import squareform
 
 
