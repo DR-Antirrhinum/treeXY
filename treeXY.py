@@ -96,8 +96,21 @@ if args.compute_trees:
     tree_file_name = sync_name + "_" + "_".join(site_args) + "_treeXY_topos.csv"
     open(tree_file_name, "w").close()
 
+pop_names = tf.read_pop_names(args.file)
+
 # open window output file
-# open(w_file_name, "w").close()
+with open(w_file_name, "w") as out_file:
+    piw_headers = ["piw_" + name for name in pop_names]
+    pit_headers = ["_".join(pair) for pair in list(itertools.combinations(pop_names, 2))]
+    pit_headers = ["piT_" + name for name in pit_headers]
+    dxy_headers = ["_".join(pair) for pair in list(itertools.combinations(pop_names, 2))]
+    dxy_headers = ["dXY_" + name for name in dxy_headers]
+    D_headers = ["_".join(pair) for pair in list(itertools.combinations(pop_names, 2))]
+    D_headers = ["D_" + name for name in D_headers]
+    # write header
+    out_file.write("scaffold" + "," + "window_start" + "," + "window_end" + "," + "n_window_sites" + "," +
+                   ",".join(piw_headers) + "," + ",".join(pit_headers) + "," + ",".join(dxy_headers) + "," +
+                   ",".join(D_headers) + "\n")
 
 # initialise dict to store window averages
 window_details = tf.initialise_windows(args.file, args.window_size, args.window_overlap)
@@ -169,6 +182,21 @@ with open(args.file) as file:
                 window_dict = tf.stats_to_windows(window_dict, pos, max_pos, pos_piw_vals, pos_pit_vals, pos_dxy_vals,
                                                   pos_D_vals, args.window_size, args.window_overlap)
 
+            # **** need logic to check whether curr pos >= window end coord
+            # **** if so, write window and remove from window_dict
+            keys_to_del = []
+            for key in window_dict.keys():
+                if int(pos) >= max(key):
+                    w_average = tf.average_window(key, window_dict)
+                    if w_average:
+                        tf.write_window(scaff, key, w_average, w_file_name)
+                    keys_to_del.append(key)
+
+            # delete keys from window_dict if the window has already been written (to save memory)
+            for key in keys_to_del:
+                del window_dict[key]
+
+            # write tree stats for biallelic sites
             if args.compute_trees:
                 if len(alleles) > 1 and all([i > 0 for i in pop_dpth]):
                     with open(tree_file_name, "a") as tree_file:
@@ -176,42 +204,36 @@ with open(args.file) as file:
                         tree_stats = [str(i) for i in tree_stats]
                         tree_file.write(",".join([scaff, pos, ",".join(tree_stats)]) + "\n")
 
+# write any remaining windows
+for key in window_dict.keys():
+    w_average = tf.average_window(key, window_dict)
+    if w_average:
+        tf.write_window(scaff, key, w_average, w_file_name)
+
 # print(tracemalloc.get_traced_memory())
 
 # open file for writing
-with open(w_file_name, "w") as out_file:
-    piw_headers = ["piw_" + name for name in pop_names]
-    pit_headers = ["_".join(pair) for pair in list(itertools.combinations(pop_names, 2))]
-    pit_headers = ["piT_" + name for name in pit_headers]
-    dxy_headers = ["_".join(pair) for pair in list(itertools.combinations(pop_names, 2))]
-    dxy_headers = ["dXY_" + name for name in dxy_headers]
-    D_headers = ["_".join(pair) for pair in list(itertools.combinations(pop_names, 2))]
-    D_headers = ["D_" + name for name in D_headers]
-    # write header
-    out_file.write("scaffold" + "," + "window_start" + "," + "window_end" + "," + "n_window_sites" + "," +
-                   ",".join(piw_headers) + "," + ",".join(pit_headers) + "," + ",".join(dxy_headers) + "," +
-                   ",".join(D_headers) + "\n")
-
-    for key in window_dict.keys():
-        # need to take mean of each column for each window, for piw and dxy
-        window_piw_vals = window_dict[key][0]
-        window_pit_vals = window_dict[key][1]
-        window_dxy_vals = window_dict[key][2]
-        window_D_vals = window_dict[key][3]
-
-        if len(window_piw_vals) > 0 and len(window_pit_vals) > 0 and len(window_dxy_vals) > 0:
-            window_piw_means = tf.vals_to_pop_means(window_piw_vals)
-            window_pit_means = tf.vals_to_pop_means(window_pit_vals)
-            window_dxy_means = tf.vals_to_pop_means(window_dxy_vals)
-            window_D_means = tf.vals_to_pop_means(window_D_vals)
-
-            # convert to string and write to file
-            window_piw_means = list(map(str, window_piw_means))
-            window_pit_means = list(map(str, window_pit_means))
-            window_dxy_means = list(map(str, window_dxy_means))
-            window_D_means = list(map(str, window_D_means))
-            # write to file
-            out_file.write(scaff + "," + str(min(key)) + "," + str(max(key)) + "," +
-                           str(len(window_piw_vals)) + "," + ",".join(window_piw_means) + "," +
-                           ",".join(window_pit_means) + "," + ",".join(window_dxy_means) + "," +
-                           ",".join(window_D_means) + "\n")
+# with open(w_file_name, "a") as out_file:
+#     for key in window_dict.keys():
+#         # need to take mean of each column for each window, for piw and dxy
+#         window_piw_vals = window_dict[key][0]
+#         window_pit_vals = window_dict[key][1]
+#         window_dxy_vals = window_dict[key][2]
+#         window_D_vals = window_dict[key][3]
+#
+#         if len(window_piw_vals) > 0 and len(window_pit_vals) > 0 and len(window_dxy_vals) > 0:
+#             window_piw_means = tf.vals_to_pop_means(window_piw_vals)
+#             window_pit_means = tf.vals_to_pop_means(window_pit_vals)
+#             window_dxy_means = tf.vals_to_pop_means(window_dxy_vals)
+#             window_D_means = tf.vals_to_pop_means(window_D_vals)
+#
+#             # convert to string and write to file
+#             window_piw_means = list(map(str, window_piw_means))
+#             window_pit_means = list(map(str, window_pit_means))
+#             window_dxy_means = list(map(str, window_dxy_means))
+#             window_D_means = list(map(str, window_D_means))
+#             # write to file
+#             out_file.write(scaff + "," + str(min(key)) + "," + str(max(key)) + "," +
+#                            str(len(window_piw_vals)) + "," + ",".join(window_piw_means) + "," +
+#                            ",".join(window_pit_means) + "," + ",".join(window_dxy_means) + "," +
+#                            ",".join(window_D_means) + "\n")

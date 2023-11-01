@@ -11,6 +11,19 @@ from scipy.spatial.distance import squareform
 #############
 # functions #
 #############
+def read_pop_names(in_file):
+    with open(in_file) as f:
+        for i in f:
+            # strip trailing newline
+            i = i.strip("\n")
+            i = i.split("\t")
+            # genomic position
+            sc = i[3:]
+            pop_names = [str(i) for i in range(1, len(sc) + 1)]
+
+            return pop_names
+
+
 def initialise_windows(in_file, w_size, w_overlap):
     # windows
     # check the total number of windows
@@ -355,6 +368,49 @@ def stats_to_windows(curr_window_dict, curr_pos, w_max_pos, piw, pit, dxy, D, wi
         # print(pos, "stats_to_windows", tracemalloc.get_traced_memory())
 
         return curr_window_dict
+
+
+def average_window(key_to_avg, curr_window_dict):
+    # take mean of each column for each window, for piw and dxy
+    window_piw_vals = curr_window_dict[key_to_avg][0]
+    window_pit_vals = curr_window_dict[key_to_avg][1]
+    window_dxy_vals = curr_window_dict[key_to_avg][2]
+    window_da_vals = curr_window_dict[key_to_avg][3]
+
+    n_sites = str(len(window_piw_vals))
+
+    if len(window_piw_vals) > 0 and len(window_pit_vals) > 0 and len(window_dxy_vals) > 0:
+        window_piw_means = vals_to_pop_means(window_piw_vals)
+        window_pit_means = vals_to_pop_means(window_pit_vals)
+        window_dxy_means = vals_to_pop_means(window_dxy_vals)
+        window_da_means = vals_to_pop_means(window_da_vals)
+
+        # convert to string and write to file
+        window_piw_means = list(map(str, window_piw_means))
+        window_pit_means = list(map(str, window_pit_means))
+        window_dxy_means = list(map(str, window_dxy_means))
+        window_da_means = list(map(str, window_da_means))
+
+        return [n_sites, window_piw_means, window_pit_means, window_dxy_means, window_da_means]
+
+    # return False if window has no associated values
+    else:
+        return False
+
+
+def write_window(scaff, key, w_avg, w_out_file):
+    with open(w_out_file, "a") as out_file:
+        n_window_sites = w_avg[0]
+        window_piw_means = w_avg[1]
+        window_pit_means = w_avg[2]
+        window_dxy_means = w_avg[3]
+        window_da_means = w_avg[4]
+
+        out_file.write(scaff + "," + str(min(key)) + "," + str(max(key)) + "," +
+                       n_window_sites + "," + ",".join(window_piw_means) + "," +
+                       ",".join(window_pit_means) + "," +
+                       ",".join(window_dxy_means) + "," +
+                       ",".join(window_da_means) + "\n")
 
 
 def vals_to_pop_means(val_list):
