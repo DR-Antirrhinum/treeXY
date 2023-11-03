@@ -28,12 +28,14 @@ def initialise_windows(in_file, w_size, w_overlap):
     # windows
     # check the total number of windows
     with open(in_file) as f:
-        for i in f:
+        for i, e in enumerate(f):
             # strip trailing newline
-            i = i.strip("\n")
-            i = i.split("\t")
+            e = e.strip("\n")
+            e = e.split("\t")
             # genomic position
-            p = i[1]
+            p = e[1]
+            if i == 0:
+                min_pos = int(e[1])
         max_pos = int(p)
 
     window_size = int(w_size)
@@ -58,6 +60,17 @@ def initialise_windows(in_file, w_size, w_overlap):
             end_coord = max_pos + 1
         # three empty lists, to be populated with pi-w, piT, and dXY
         windows[range(start_coord, end_coord)] = [[], [], [], []]
+
+    # remove windows where end coord is < min_pos
+    # **** is it worth adding a loop to remove all redundant windows?
+    # **** e.g. could record all positions in SYNC file and check against all window ranges
+    s_keys = []
+    for key in windows.keys():
+        if max(key) < min_pos:
+            s_keys.append(key)
+
+    for key in s_keys:
+        del windows[key]
 
     # print("initialise_windows", tracemalloc.get_traced_memory())
 

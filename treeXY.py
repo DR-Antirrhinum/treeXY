@@ -2,6 +2,7 @@ import itertools
 # import tracemalloc
 from argparse import ArgumentParser
 import treeXY_funcs as tf
+import time
 
 
 ##########################
@@ -184,18 +185,32 @@ with open(args.file) as file:
 
             # **** need logic to check whether curr pos >= window end coord
             # **** if so, write window and remove from window_dict
-            keys_to_del = []
-            for key in window_dict.keys():
-                if int(pos) >= max(key):
-                    w_average = tf.average_window(key, window_dict)
-                    if w_average:
-                        tf.write_window(scaff, key, w_average, w_file_name)
-                    keys_to_del.append(key)
+            # t1 = time.time()
 
+            smallest_w = next(iter(window_dict))
+            keys_to_del = []
+
+            # t1_1 = time.time()
+            # **** does this work if windows step is 1?
+            if int(pos) >= max(smallest_w):
+                # t1_2 = time.time()
+                w_average = tf.average_window(smallest_w, window_dict)
+                # t1_3 = time.time()
+                if w_average:
+                    # t1_4 = time.time()
+                    tf.write_window(scaff, smallest_w, w_average, w_file_name)
+                t1_5 = time.time()
+                keys_to_del.append(smallest_w)
+                # print(t1_1 - t1, t1_2 - t1_1, t1_3 - t1_2)
+
+            # t2 = time.time()
+            # print("t2 - t1 = " + str(t2 - t1))
             # delete keys from window_dict if the window has already been written (to save memory)
             for key in keys_to_del:
                 del window_dict[key]
 
+            # t3 = time.time()
+            # print("t3 - t2 = " + str(t3 - t2))
             # write tree stats for biallelic sites
             if args.compute_trees:
                 if len(alleles) > 1 and all([i > 0 for i in pop_dpth]):
@@ -203,37 +218,11 @@ with open(args.file) as file:
                         tree_stats = tf.get_site_trees(pop_dpth, pos_dxy_vals)
                         tree_stats = [str(i) for i in tree_stats]
                         tree_file.write(",".join([scaff, pos, ",".join(tree_stats)]) + "\n")
+            # t4 = time.time()
+            # print("t4 - t3 = " + str(t4 - t3))
 
 # write any remaining windows
 for key in window_dict.keys():
     w_average = tf.average_window(key, window_dict)
     if w_average:
         tf.write_window(scaff, key, w_average, w_file_name)
-
-# print(tracemalloc.get_traced_memory())
-
-# open file for writing
-# with open(w_file_name, "a") as out_file:
-#     for key in window_dict.keys():
-#         # need to take mean of each column for each window, for piw and dxy
-#         window_piw_vals = window_dict[key][0]
-#         window_pit_vals = window_dict[key][1]
-#         window_dxy_vals = window_dict[key][2]
-#         window_D_vals = window_dict[key][3]
-#
-#         if len(window_piw_vals) > 0 and len(window_pit_vals) > 0 and len(window_dxy_vals) > 0:
-#             window_piw_means = tf.vals_to_pop_means(window_piw_vals)
-#             window_pit_means = tf.vals_to_pop_means(window_pit_vals)
-#             window_dxy_means = tf.vals_to_pop_means(window_dxy_vals)
-#             window_D_means = tf.vals_to_pop_means(window_D_vals)
-#
-#             # convert to string and write to file
-#             window_piw_means = list(map(str, window_piw_means))
-#             window_pit_means = list(map(str, window_pit_means))
-#             window_dxy_means = list(map(str, window_dxy_means))
-#             window_D_means = list(map(str, window_D_means))
-#             # write to file
-#             out_file.write(scaff + "," + str(min(key)) + "," + str(max(key)) + "," +
-#                            str(len(window_piw_vals)) + "," + ",".join(window_piw_means) + "," +
-#                            ",".join(window_pit_means) + "," + ",".join(window_dxy_means) + "," +
-#                            ",".join(window_D_means) + "\n")
