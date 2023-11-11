@@ -62,29 +62,17 @@ with open(args.file) as file:
         # **** arg to filter on n_sites
         n_sites = line[3]
         dxy = [float(line[i]) for i in dxy_inds]
-        dxy_mat = gts.tab_to_matrix(dxy_h, dxy)
-        dxy_mat_list.append(dxy_mat)
-        # get maximum height at which UPGMA merges populations i.e. the tree height
-        # **** implement piw and Nei's D
-        tree_height = max(dxy_mat[0:, 2])
-        second_max = dxy_mat[0:, 2][-2]
-        # shortest root branch = tree height - penultimate cluster height
-        srb = tree_height - second_max
-        srb_list.append(srb)
+        if sum(dxy) > 0:
+            dxy_mat = gts.tab_to_matrix(dxy_h, dxy)
+            dxy_mat_list.append(dxy_mat)
+            # get maximum height at which UPGMA merges populations i.e. the tree height
+            tree_height = max(dxy_mat[0:, 2])
+            second_max = dxy_mat[0:, 2][-2]
+            # shortest root branch = tree height - penultimate cluster height
+            srb = tree_height - second_max
+            srb_list.append(srb)
 
-# 67270 (30, 1946) nan
-# 67271 (30, 1947) nan
-# 67272 (30, 1948) nan
-# 67273 (30, 1949) nan
-# 67274 (30, 1950) nan
-
-# shc.dendrogram(Z=dxy_mat_list[30])
-# plt.show()
-# exit()
-#
-# quit()
-
-print(srb_list[0])
+srb_sort_index = np.argsort(srb_list)
 
 all_comps = itertools.combinations([i for i in range(0, len(dxy_mat_list))], 2)
 tot_comps = len([i for i in all_comps])
@@ -98,15 +86,28 @@ for i, comp in enumerate(all_comps):
     coph_list.append([tree_1, tree_2, coph_cor])
 
 df = pd.DataFrame(coph_list, columns=["tree_1", "tree_2", "coph_cor"])
-# df = df.pivot_table(index='tree_1', columns='tree_2', values='coph_cor')
-# df = df.combine_first(df.T)
+df = df.pivot_table(index='tree_1', columns='tree_2', values='coph_cor')
+df = df.combine_first(df.T)
 # set diagonal to 0
-# np.fill_diagonal(df.to_numpy(), 0)
+np.fill_diagonal(df.to_numpy(), 0)
+# sort cols and rows
+df = df[srb_sort_index]
+df = df.loc[srb_sort_index]
+df = np.tril(df)
+
 # convert distance matrix to minimal representation for scipy linkage compatibility
 # dm = squareform(df)
 
-G = nx.from_pandas_edgelist(df, source="tree_1", target="tree_2", edge_attr="coph_cor")
-nx.draw(G)
+# col_list = []
+# for srb in srb_list:
+#     if srb > 0.005:
+#         col_list.append("red")
+#     else:
+#         col_list.append("grey")
+
+# G = nx.from_pandas_edgelist(df, source="tree_1", target="tree_2", edge_attr="coph_cor")
+# nx.draw_spring(G, node_color=col_list)
+plt.imshow(df, cmap='hot_r', interpolation='nearest')
 plt.show()
 
 # coph_list = [str(i) for i in coph_list]
