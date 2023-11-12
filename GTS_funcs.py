@@ -46,5 +46,12 @@ def coph_cor(cluster_1, cluster_2):
     return coph_mat[0][1]
 
 
-def grouping_tree_scan(seed_list, tree_list):
-    pass
+def grouping_tree_scan(seed, tree_dict, coph_threshold):
+    seed_tree = tree_dict[seed]
+    forest = []
+    for tree_key in tree_dict.keys():
+        cc = coph_cor(seed_tree, tree_dict[tree_key])
+        if cc >= coph_threshold:
+            forest.append(tree_key)
+
+    return forest

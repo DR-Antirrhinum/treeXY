@@ -5,19 +5,10 @@
 # 3) grouping tree scan (take random tree, compare to all trees, group)
 # output: GTS forests
 
+import datetime
+import random
 from argparse import ArgumentParser
 import GTS_funcs as gts
-
-# **** TO REMOVE
-import itertools
-import numpy as np
-import pandas as pd
-import scipy.cluster.hierarchy as shc
-# from scipy.spatial import distance_matrix
-from scipy.spatial.distance import squareform
-from scipy.cluster.hierarchy import dendrogram
-import matplotlib.pyplot as plt
-import networkx as nx
 
 ##########################
 # command line arguments #
@@ -25,15 +16,17 @@ import networkx as nx
 parser = ArgumentParser(prog="GTS",
                         description="Grouping tree scan")
 
-parser.add_argument("-f", "--file",
+parser.add_argument("-f", "--files",
                     required=True,
-                    help="Input treeXY file to be processed.",
+                    nargs="+",
+                    help="Input treeXY file(s) to be processed.",
                     metavar="treeXY_file")
 
-parser.add_argument("-m", "--min_sites",
-                    type=int,
-                    default=15,
-                    help="Minimum number of sites for a window to be included")
+parser.add_argument("-m", "--min_coverage",
+                    type=float,
+                    default=0.1,
+                    help="Minimum read coverage for a window to be included."
+                         "Read coverage is calculated as number of sites passing depth / window size.")
 
 args = parser.parse_args()
 
@@ -41,75 +34,85 @@ args = parser.parse_args()
 # GTS #
 #######
 
-with open(args.file) as file:
-    # derive col indices from header line
-    h_line = file.readline()
-    h_line = h_line.strip("\n")
-    h_line = h_line.split(",")
-    # piw_inds = [i for i, e in enumerate(h_line) if 'piw' in e]
-    dxy_inds = [i for i, e in enumerate(h_line) if 'dXY' in e]
-    dxy_h = [h_line[i] for i in dxy_inds]
-    # da_inds = [i for i, e in enumerate(h_line) if 'D' in e]
-    dxy_mat_list = []
-    srb_list = []
-    for line in file:
-        # strip trailing newline
-        line = line.strip("\n")
-        line = line.split(",")
-        scaff = line[0]
-        w_start = line[1]
-        w_end = line[2]
-        # **** arg to filter on n_sites
-        n_sites = line[3]
-        dxy = [float(line[i]) for i in dxy_inds]
-        if sum(dxy) > 0:
-            dxy_mat = gts.tab_to_matrix(dxy_h, dxy)
-            dxy_mat_list.append(dxy_mat)
-            # get maximum height at which UPGMA merges populations i.e. the tree height
-            tree_height = max(dxy_mat[0:, 2])
-            second_max = dxy_mat[0:, 2][-2]
-            # shortest root branch = tree height - penultimate cluster height
-            srb = tree_height - second_max
-            srb_list.append(srb)
+f_date = datetime.date.today().strftime('%y_%m_%d')
+f_id = str(random.getrandbits(32))
+f_name_stats = "GTS_forest_stats" + "_" + f_date + "_" + f_id + ".csv"
+f_name_trees = "GTS_forests" + "_" + f_date + "_" + f_id + ".csv"
 
-srb_sort_index = np.argsort(srb_list)
+# open forest stats output file
+with open(f_name_stats, "w") as out_file:
+    # write header
+    out_file.write("forest_ID" + "," + "forest_size" + "," + "mean_forest_SRB" + "\n")
 
-all_comps = itertools.combinations([i for i in range(0, len(dxy_mat_list))], 2)
-tot_comps = len([i for i in all_comps])
-all_comps = itertools.combinations([i for i in range(0, len(dxy_mat_list))], 2)
+# open forest members output file
+open(f_name_trees, "w").close()
 
-coph_list = []
-for i, comp in enumerate(all_comps):
-    tree_1 = comp[0]
-    tree_2 = comp[1]
-    coph_cor = gts.coph_cor(dxy_mat_list[tree_1], dxy_mat_list[tree_2])
-    coph_list.append([tree_1, tree_2, coph_cor])
+dxy_mat_dict = {}
+srb_dict = {}
+for in_tab in args.files:
+    with open(in_tab) as file:
+        # derive col indices from header line
+        h_line = file.readline()
+        h_line = h_line.strip("\n")
+        h_line = h_line.split(",")
+        # piw_inds = [i for i, e in enumerate(h_line) if 'piw' in e]
+        dxy_inds = [i for i, e in enumerate(h_line) if 'dXY' in e]
+        dxy_h = [h_line[i] for i in dxy_inds]
+        # da_inds = [i for i, e in enumerate(h_line) if 'D' in e]
+        for line in file:
+            # strip trailing newline
+            line = line.strip("\n")
+            line = line.split(",")
+            scaff = line[0]
+            w_start = line[1]
+            w_end = line[2]
+            w_size = int(w_end) - int(w_start)
+            w_mid = (int(w_end) + int(w_start)) / 2
+            w_mid_Mb = w_mid / 1000000
+            w_identifier = scaff + "_" + str(w_mid_Mb)
+            n_sites = line[3]
+            coverage = int(n_sites) / w_size
+            dxy = [float(line[i]) for i in dxy_inds]
+            if coverage >= args.min_coverage:
+                dxy_mat = gts.tab_to_matrix(dxy_h, dxy)
+                dxy_mat_dict[w_identifier] = dxy_mat
+                # get maximum height at which UPGMA merges populations i.e. the tree height
+                tree_height = max(dxy_mat[0:, 2])
+                second_max = dxy_mat[0:, 2][-2]
+                # shortest root branch = tree height - penultimate cluster height
+                srb = tree_height - second_max
+                srb_dict[w_identifier] = (srb)
 
-df = pd.DataFrame(coph_list, columns=["tree_1", "tree_2", "coph_cor"])
-df = df.pivot_table(index='tree_1', columns='tree_2', values='coph_cor')
-df = df.combine_first(df.T)
-# set diagonal to 0
-np.fill_diagonal(df.to_numpy(), 0)
-# sort cols and rows
-df = df[srb_sort_index]
-df = df.loc[srb_sort_index]
-df = np.tril(df)
+gts_seeds = [i for i in dxy_mat_dict.keys()]
+random.shuffle(gts_seeds)
 
-# convert distance matrix to minimal representation for scipy linkage compatibility
-# dm = squareform(df)
+forest_list = []
+while len(gts_seeds) > 0:
+    curr_seed = gts_seeds[0]
+    forest = gts.grouping_tree_scan(curr_seed, dxy_mat_dict, 0.5)
+    forest_list.append(forest)
+    for f_tree in forest:
+        gts_seeds.remove(f_tree)
+        del dxy_mat_dict[f_tree]
 
-# col_list = []
-# for srb in srb_list:
-#     if srb > 0.005:
-#         col_list.append("red")
-#     else:
-#         col_list.append("grey")
+write_list = []
+f_trees_list = []
+for i, forest in enumerate(forest_list):
+    forest_id = str(i + 1)
+    forest_size = str(len(forest))
+    forest_srb = []
+    for tree in forest:
+        tree_srb = srb_dict[tree]
+        forest_srb.append(tree_srb)
 
-# G = nx.from_pandas_edgelist(df, source="tree_1", target="tree_2", edge_attr="coph_cor")
-# nx.draw_spring(G, node_color=col_list)
-plt.imshow(df, cmap='hot_r', interpolation='nearest')
-plt.show()
+    mean_forest_srb = sum(forest_srb) / len(forest_srb)
+    write_list.append(forest_id + "," + forest_size + "," + str(mean_forest_srb) + "\n")
+    f_trees_list.append(",".join(forest) + "\n")
 
-# coph_list = [str(i) for i in coph_list]
+with(open(f_name_stats, "a")) as out_file:
+    for line in write_list:
+        out_file.write(line)
 
-# print(",".join(coph_list))
+with(open(f_name_trees, "a")) as out_file:
+    for line in f_trees_list:
+        out_file.write(line)
