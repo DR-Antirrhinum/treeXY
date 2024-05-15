@@ -52,7 +52,9 @@ A Dockerfile is included for ease of installation. Alternatively, use a Python d
 
 `--write_sync` Write sites passing all treeXY depth checks to a new SYNC file.
 
-`--compute_trees` If specified, treeXY will run hierarchical clustering to generate dXY trees at all valid biallelic sites. dXY tree statistics, incuding Tree Height, Shortest Root Branch (SRB), and Root Division representation, will be written to a separate CSV file. See Introduction for more details.
+`--dxy_trees` If specified, treeXY will run hierarchical clustering to generate dXY trees at all valid biallelic sites. dXY tree statistics, incuding Tree Height, Shortest Root Branch (SRB), and Root Division representation, will be written to a separate CSV file. See Introduction for more details.
+
+`--d_trees` As above, except using Nei's D.
 
 ## Usage example
 treeXY has been used to study barriers to gene flow between two subspecies of the snapdragon *Antirrhinum majus*, *A. m. pseudomajus* and *A. m. striatum* (Richardson *et al.*, manuscript in preparation).
