@@ -43,6 +43,10 @@ parser.add_argument("-A", "--min_allele_pops",
                     default=2,
                     help="Minimum number of populations required for an allele call")
 
+parser.add_argument("--whole-scaffold",
+                    action="store_true",
+                    help="Take an average across all passing sites on the scaffold, rather than using windows")
+
 parser.add_argument("-w", "--window_size",
                     type=int,
                     default=10000,
@@ -65,9 +69,13 @@ parser.add_argument("--write_site_stats",
                     default=False,
                     help="Also write pi-within, pi-total, and dXY for individual sites")
 
-parser.add_argument("--compute_trees",
+parser.add_argument("--dxy_trees",
                     action="store_true",
-                    help="Run hierarchical clustering on site dXY values, returning tree stats and RD (see README)")
+                    help="Generate UPGMA SNP trees using dXY, returning tree stats and RD (see README)")
+
+parser.add_argument("--d_trees",
+                    action="store_true",
+                    help="Generate UPGMA SNP trees using Nei's D, returning tree stats and RD (see README)")
 
 args = parser.parse_args()
 
@@ -91,11 +99,17 @@ if args.write_sync:
     f_sync_name = sync_name + "_treeXY_filtered.sync"
     open(f_sync_name, "w").close()
 
-if args.compute_trees:
+if args.dxy_trees:
     site_args = args.min_depth, args.max_depth, args.min_allele_depth, args.min_allele_pops
     site_args = list(map(str, site_args))
-    tree_file_name = sync_name + "_" + "_".join(site_args) + "_treeXY_topos.csv"
-    open(tree_file_name, "w").close()
+    dxy_tree_file_name = sync_name + "_" + "_".join(site_args) + "_treeXY_topos_dXY.csv"
+    open(dxy_tree_file_name, "w").close()
+
+if args.d_trees:
+    site_args = args.min_depth, args.max_depth, args.min_allele_depth, args.min_allele_pops
+    site_args = list(map(str, site_args))
+    D_tree_file_name = sync_name + "_" + "_".join(site_args) + "_treeXY_topos_D.csv"
+    open(D_tree_file_name, "w").close()
 
 pop_names = tf.read_pop_names(args.file)
 
@@ -132,6 +146,8 @@ with open(args.file) as file:
         # all colon delimited count columns
         site_counts = line[3:]
         count_list = tf.get_sync_counts(site_counts)
+        # filter alleles below AD threshold
+        count_list = tf.filter_low_depth(count_list, args.min_allele_depth)
         # **** eventually, want to read names from file
         pop_names = [str(i) for i in range(1, len(count_list) + 1)]
 
@@ -168,6 +184,16 @@ with open(args.file) as file:
             # print("completed multiallelic filtering for position " + pos)
             # print(tracemalloc.get_traced_memory())
 
+            # line with filtered counts
+            # **** NEED to function this for consistency
+            # **** having both site_counts and count_list is confusing
+            f_count_list = []
+            for pop_count in count_list:
+                pop_count = [str(i) for i in pop_count]
+                f_pop_count = ":".join(pop_count)
+                f_count_list.append(f_pop_count)
+            line = [scaff, pos, ref] + [str(i) for i in f_count_list]
+
             # proceed with piT / dXY / tree calculations for biallelic and monoallelic sites
             if valid_allele_num and len(alleles) > 0 and all([i > 0 for i in pop_dpth]):
                 # optionally, write line to filtered SYNC file
@@ -187,6 +213,7 @@ with open(args.file) as file:
             # **** if so, write window and remove from window_dict
             # t1 = time.time()
 
+            # **** THIS WON'T WORK FOR WHOLE CHR
             smallest_w = next(iter(window_dict))
             keys_to_del = []
 
@@ -212,10 +239,17 @@ with open(args.file) as file:
             # t3 = time.time()
             # print("t3 - t2 = " + str(t3 - t2))
             # write tree stats for biallelic sites
-            if args.compute_trees:
+            if args.dxy_trees:
                 if len(alleles) > 1 and all([i > 0 for i in pop_dpth]):
-                    with open(tree_file_name, "a") as tree_file:
+                    with open(dxy_tree_file_name, "a") as tree_file:
                         tree_stats = tf.get_site_trees(pop_dpth, pos_dxy_vals)
+                        tree_stats = [str(i) for i in tree_stats]
+                        tree_file.write(",".join([scaff, pos, ",".join(tree_stats)]) + "\n")
+
+            if args.d_trees:
+                if len(alleles) > 1 and all([i > 0 for i in pop_dpth]):
+                    with open(D_tree_file_name, "a") as tree_file:
+                        tree_stats = tf.get_site_trees(pop_dpth, pos_D_vals)
                         tree_stats = [str(i) for i in tree_stats]
                         tree_file.write(",".join([scaff, pos, ",".join(tree_stats)]) + "\n")
             # t4 = time.time()

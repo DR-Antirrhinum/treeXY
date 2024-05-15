@@ -29,6 +29,7 @@ def initialise_windows(in_file, w_size, w_overlap):
     # check the total number of windows
     with open(in_file) as f:
         for i, e in enumerate(f):
+            print(i, e)
             # strip trailing newline
             e = e.strip("\n")
             e = e.split("\t")
@@ -172,6 +173,10 @@ def check_allele_num(sync_count_list, dpth_pass_list, min_allele_depth):
         return [dpth_pass_list, []]
 
 
+# def get_formatted_line(scaffold, position, ref_allele, count_list):
+#     pass
+
+
 def filter_triallelic(sync_count_list, scaff, pos, ref):
     # remove least common allele from triallelic sites
     site_tots = [sum(x) for x in zip(*sync_count_list)]
@@ -197,6 +202,17 @@ def filter_triallelic(sync_count_list, scaff, pos, ref):
     # print(pos, "filter_triallelic", tracemalloc.get_traced_memory())
 
     return edited_list
+
+
+def filter_low_depth(sync_count_list, ad_cutoff):
+    new_counts = []
+    for pop_counts in sync_count_list:
+        for i, count in enumerate(pop_counts):
+            if count < ad_cutoff:
+                pop_counts[i] = 0
+        new_counts.append(pop_counts)
+
+    return new_counts
 
 
 def get_allele_freqs(allele_inds, sync_count_list, names):
@@ -270,6 +286,20 @@ def get_da(p1, p2, dxy):
     return da
 
 
+# calculate FST for a given population pair
+def get_fst(p1, p2, dxy):
+    piw1 = get_piw(p1)
+    piw2 = get_piw(p2)
+    piw_bar = (piw1 + piw2) / 2
+    da = dxy - piw_bar
+    pi_tot = dxy + piw_bar
+    fst = da / pi_tot
+
+    # print("get_pit", tracemalloc.get_traced_memory())
+
+    return fst
+
+
 # calculate piw across list of valid pops
 # **** I've removed None padding because I'm a pillock
 def get_all_pop_piw(pop_names, dpth_pass_pops, freqs_dict):
@@ -288,10 +318,11 @@ def get_all_pop_piw(pop_names, dpth_pass_pops, freqs_dict):
 
 # calculate stats for valid pops / comps
 def get_all_pop_pit_dxy(pop_names, dpth_pass_comps, freqs_dict):
-    dpth_pass_comps = list(dpth_pass_comps)
+    # dpth_pass_comps = list(dpth_pass_comps)
     pop_pit_vals = [None] * len(dpth_pass_comps)
     pop_dxy_vals = [None] * len(dpth_pass_comps)
     pop_D_vals = [None] * len(dpth_pass_comps)
+    pop_fst_vals = [None] * len(dpth_pass_comps)
 
     for comp in dpth_pass_comps:
         comp_index = dpth_pass_comps.index(comp)
@@ -308,7 +339,29 @@ def get_all_pop_pit_dxy(pop_names, dpth_pass_comps, freqs_dict):
 
     # print(pos, "get_all_pop_pit_dxy", tracemalloc.get_traced_memory())
 
-    return [pop_pit_vals, pop_dxy_vals, pop_D_vals]
+    return [pop_pit_vals, pop_dxy_vals, pop_D_vals, pop_fst_vals]
+
+
+def get_all_pop_fst(pop_names, dpth_pass_comps, freqs_dict):
+    # dpth_pass_comps = list(dpth_pass_comps)
+    pop_fst_vals = [None] * len(dpth_pass_comps)
+
+    for comp in dpth_pass_comps:
+        comp_index = dpth_pass_comps.index(comp)
+        pop1 = pop_names[comp[0]]
+        pop2 = pop_names[comp[1]]
+        pop1_pq = freqs_dict[pop1]
+        pop2_pq = freqs_dict[pop2]
+        pops_dxy = get_dxy(pop1_pq[0], pop2_pq[0])
+        if pops_dxy > 0:
+            pops_fst = get_fst(pop1_pq[0], pop2_pq[0], pops_dxy)
+            pop_fst_vals[comp_index] = pops_fst
+        else:
+            pop_fst_vals[comp_index] = None
+
+    # print(pos, "get_all_pop_pit_dxy", tracemalloc.get_traced_memory())
+
+    return pop_fst_vals
 
 
 def get_site_stats(alleles, count_list, pop_names, pop_dpth):
@@ -320,12 +373,16 @@ def get_site_stats(alleles, count_list, pop_names, pop_dpth):
     pop_piw_vals = get_all_pop_piw(pop_names, dpth_pass_pops, freqs_dict)
 
     # make list of valid comparisons based on indices of pop_dpth
-    dpth_pass_comps = itertools.combinations(dpth_pass_pops, 2)
+    dpth_pass_comps = list(itertools.combinations(dpth_pass_pops, 2))
     # calculate stats for valid pops / comps
     pairwise_stats = get_all_pop_pit_dxy(pop_names, dpth_pass_comps, freqs_dict)
     pop_pit_vals = pairwise_stats[0]
     pop_dxy_vals = pairwise_stats[1]
     pop_D_vals = pairwise_stats[2]
+
+    pop_fst_vals = get_all_pop_fst(pop_names, dpth_pass_comps, freqs_dict)
+
+    print(pop_fst_vals)
 
     # print(pos, "get_site_stats2", tracemalloc.get_traced_memory())
 
@@ -443,14 +500,14 @@ def vals_to_pop_means(val_list):
     return mean_list
 
 
-def get_site_trees(pop_dpth, dxy_vals):
+def get_site_trees(pop_dpth, distance_vals):
     pop_pairs = []
     dpth_pass_pops = [i for i, e in enumerate(pop_dpth) if e != 0]
     dxy_headers = itertools.combinations(dpth_pass_pops, 2)
     for i, header in enumerate(dxy_headers):
         pop1 = header[0]
         pop2 = header[1]
-        dxy = dxy_vals[i]
+        dxy = distance_vals[i]
         pop_pairs.append([pop1, pop2, dxy])
 
     # read pairwise dXY into pandas data frame, and convert to distance matrix
