@@ -1,5 +1,4 @@
 import itertools
-# import tracemalloc
 from argparse import ArgumentParser
 import treeXY_funcs as tf
 import time
@@ -15,13 +14,6 @@ parser.add_argument("-f", "--file",
                     required=True,
                     help="Input SYNC file to be processed.",
                     metavar="sync_file")
-
-# parser.add_argument("-p", "--pops",
-#                     required=False,
-#                     help="Input pop file describing the pools. "
-#                          "Column 1 is pop names, column 2 is number in pool, and "
-#                          "column 3 is 1/2 grouping (or 0 to exclude).",
-#                     metavar="pop_file")
 
 parser.add_argument("-m", "--min_depth",
                     type=int,
@@ -82,8 +74,6 @@ args = parser.parse_args()
 ##########
 # treeXY #
 ##########
-
-# tracemalloc.start()
 
 # generate file names from args
 sync_name = args.file
@@ -148,22 +138,18 @@ with open(args.file) as file:
         count_list = tf.get_sync_counts(site_counts)
         # filter alleles below AD threshold
         count_list = tf.filter_low_depth(count_list, args.min_allele_depth)
-        # **** eventually, want to read names from file
+        # **** possibility of reading names from file
         pop_names = [str(i) for i in range(1, len(count_list) + 1)]
 
         # read depth checks
         pop_dpth = tf.check_read_depth(count_list, args.min_allele_depth, args.min_depth, args.max_depth)
         # in SW, all pops have to have > threshold depth for a site to be included
-        # **** address this more elegantly
         if sum(pop_dpth) == len(pop_names):
             # get all possible alleles
             allele_stats = tf.check_allele_num(count_list, pop_dpth, args.min_allele_depth)
             pop_dpth = allele_stats[0]
             alleles = allele_stats[1]
             valid_allele_num = True
-
-            # print("starting position " + pos)
-            # print(tracemalloc.get_traced_memory())
 
             if len(alleles) > 2 and args.ignore_multiallelic:
                 valid_allele_num = False
@@ -181,11 +167,8 @@ with open(args.file) as file:
                     pop_dpth = allele_stats[0]
                     alleles = allele_stats[1]
 
-            # print("completed multiallelic filtering for position " + pos)
-            # print(tracemalloc.get_traced_memory())
-
             # line with filtered counts
-            # **** NEED to function this for consistency
+            # **** write function for consistency
             # **** having both site_counts and count_list is confusing
             f_count_list = []
             for pop_count in count_list:
@@ -209,35 +192,22 @@ with open(args.file) as file:
                 window_dict = tf.stats_to_windows(window_dict, pos, max_pos, pos_piw_vals, pos_pit_vals, pos_dxy_vals,
                                                   pos_D_vals, args.window_size, args.window_overlap)
 
-            # **** need logic to check whether curr pos >= window end coord
-            # **** if so, write window and remove from window_dict
-            # t1 = time.time()
-
-            # **** THIS WON'T WORK FOR WHOLE CHR
+            # **** This won't work if window > scaffold size
             smallest_w = next(iter(window_dict))
             keys_to_del = []
 
-            # t1_1 = time.time()
             # **** does this work if windows step is 1?
             if int(pos) >= max(smallest_w):
-                # t1_2 = time.time()
                 w_average = tf.average_window(smallest_w, window_dict)
-                # t1_3 = time.time()
                 if w_average:
-                    # t1_4 = time.time()
                     tf.write_window(scaff, smallest_w, w_average, w_file_name)
                 t1_5 = time.time()
                 keys_to_del.append(smallest_w)
-                # print(t1_1 - t1, t1_2 - t1_1, t1_3 - t1_2)
 
-            # t2 = time.time()
-            # print("t2 - t1 = " + str(t2 - t1))
             # delete keys from window_dict if the window has already been written (to save memory)
             for key in keys_to_del:
                 del window_dict[key]
 
-            # t3 = time.time()
-            # print("t3 - t2 = " + str(t3 - t2))
             # write tree stats for biallelic sites
             if args.dxy_trees:
                 if len(alleles) > 1 and all([i > 0 for i in pop_dpth]):
@@ -252,8 +222,6 @@ with open(args.file) as file:
                         tree_stats = tf.get_site_trees(pop_dpth, pos_D_vals)
                         tree_stats = [str(i) for i in tree_stats]
                         tree_file.write(",".join([scaff, pos, ",".join(tree_stats)]) + "\n")
-            # t4 = time.time()
-            # print("t4 - t3 = " + str(t4 - t3))
 
 # write any remaining windows
 for key in window_dict.keys():

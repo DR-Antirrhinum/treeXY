@@ -1,10 +1,8 @@
 import itertools
-# import tracemalloc
 import math as maths
 import numpy as np
 import pandas as pd
 import scipy.cluster.hierarchy as shc
-# from scipy.spatial import distance_matrix
 from scipy.spatial.distance import squareform
 
 
@@ -29,7 +27,6 @@ def initialise_windows(in_file, w_size, w_overlap):
     # check the total number of windows
     with open(in_file) as f:
         for i, e in enumerate(f):
-            print(i, e)
             # strip trailing newline
             e = e.strip("\n")
             e = e.split("\t")
@@ -63,8 +60,6 @@ def initialise_windows(in_file, w_size, w_overlap):
         windows[range(start_coord, end_coord)] = [[], [], [], []]
 
     # remove windows where end coord is < min_pos
-    # **** is it worth adding a loop to remove all redundant windows?
-    # **** e.g. could record all positions in SYNC file and check against all window ranges
     s_keys = []
     for key in windows.keys():
         if max(key) < min_pos:
@@ -72,8 +67,6 @@ def initialise_windows(in_file, w_size, w_overlap):
 
     for key in s_keys:
         del windows[key]
-
-    # print("initialise_windows", tracemalloc.get_traced_memory())
 
     return [windows, max_pos]
 
@@ -90,8 +83,6 @@ def get_sync_counts(sync_site_counts):
         # non_n_count = count[0:4] + count[5:]
         sync_count_list.append(count)
 
-    # print(pos, "get_sync_counts", tracemalloc.get_traced_memory())
-
     return sync_count_list
 
 
@@ -100,8 +91,6 @@ def remove_n_count(count):
 
     n_count = count[4]
     non_n_count = count[0:4] + count[5:]
-
-    # print(pos, "remove_n_count", tracemalloc.get_traced_memory())
 
     return non_n_count
 
@@ -115,8 +104,6 @@ def remove_low_count(count, min_allele_depth):
             new_counts.append(0)
         else:
             new_counts.append(base)
-
-    # print(pos, "remove_n_count", tracemalloc.get_traced_memory())
 
     return new_counts
 
@@ -134,15 +121,11 @@ def check_read_depth(sync_count_list, min_allele_depth, min_depth, max_depth):
         else:
             depth_list.append(0)
 
-    # print(pos, "check_read_depth", tracemalloc.get_traced_memory())
-
     return depth_list
 
 
 def check_allele_num(sync_count_list, dpth_pass_list, min_allele_depth):
     # return number of alleles
-    # **** alleles should be returned in descending order of frequency (across all pops)
-
     # remove pops below threshold depth
     passing_dpth = [i for i, e in enumerate(dpth_pass_list) if e > 0]
     filtered_count_inds = [[i, sync_count_list[i]] for i in passing_dpth]
@@ -199,8 +182,6 @@ def filter_triallelic(sync_count_list, scaff, pos, ref):
 
     edited_list = "\t".join(edited_list)
 
-    # print(pos, "filter_triallelic", tracemalloc.get_traced_memory())
-
     return edited_list
 
 
@@ -216,8 +197,6 @@ def filter_low_depth(sync_count_list, ad_cutoff):
 
 
 def get_allele_freqs(allele_inds, sync_count_list, names):
-    # *** p should be major allele i.e. most frequent
-
     pop_dict = {}
     for i, count in enumerate(sync_count_list):
         curr_pop = names[i]
@@ -248,8 +227,6 @@ def get_allele_freqs(allele_inds, sync_count_list, names):
 def get_dxy(p1, p2):
     dxy = (p1 * (1 - p2)) + (p2 * (1 - p1))
 
-    # print("get_dxy", tracemalloc.get_traced_memory())
-
     return dxy
 
 
@@ -257,8 +234,6 @@ def get_dxy(p1, p2):
 # **** implement adjustments for binomial sampling (See SW documentation)
 def get_piw(p1):
     piw = 2 * p1 * (1 - p1)
-
-    # print("get_piw", tracemalloc.get_traced_memory())
 
     return piw
 
@@ -268,8 +243,6 @@ def get_pit(p1, p2, q1, q2):
     p_bar = (p1 + p2) / 2
     q_bar = (q1 + q2) / 2
     pit = 2 * p_bar * q_bar
-
-    # print("get_pit", tracemalloc.get_traced_memory())
 
     return pit
 
@@ -281,27 +254,22 @@ def get_da(p1, p2, dxy):
     piw_bar = (piw1 + piw2) / 2
     da = dxy - piw_bar
 
-    # print("get_pit", tracemalloc.get_traced_memory())
-
     return da
 
 
 # calculate FST for a given population pair
-def get_fst(p1, p2, dxy):
-    piw1 = get_piw(p1)
-    piw2 = get_piw(p2)
-    piw_bar = (piw1 + piw2) / 2
-    da = dxy - piw_bar
-    pi_tot = dxy + piw_bar
-    fst = da / pi_tot
-
-    # print("get_pit", tracemalloc.get_traced_memory())
-
-    return fst
+# def get_fst(p1, p2, dxy):
+#     piw1 = get_piw(p1)
+#     piw2 = get_piw(p2)
+#     piw_bar = (piw1 + piw2) / 2
+#     da = dxy - piw_bar
+#     pi_tot = dxy + piw_bar
+#     fst = da / pi_tot
+#
+#     return fst
 
 
 # calculate piw across list of valid pops
-# **** I've removed None padding because I'm a pillock
 def get_all_pop_piw(pop_names, dpth_pass_pops, freqs_dict):
     pop_piw_vals = [None] * len(pop_names)
     for pop in dpth_pass_pops:
@@ -310,8 +278,6 @@ def get_all_pop_piw(pop_names, dpth_pass_pops, freqs_dict):
         pop_pq = freqs_dict[pop]
         pop_piw = get_piw(pop_pq[0])
         pop_piw_vals[pop_index] = pop_piw
-
-    # print(pos, "get_all_pop_piw", tracemalloc.get_traced_memory())
 
     return pop_piw_vals
 
@@ -337,31 +303,27 @@ def get_all_pop_pit_dxy(pop_names, dpth_pass_comps, freqs_dict):
         pop_dxy_vals[comp_index] = pops_dxy
         pop_D_vals[comp_index] = pops_D
 
-    # print(pos, "get_all_pop_pit_dxy", tracemalloc.get_traced_memory())
-
     return [pop_pit_vals, pop_dxy_vals, pop_D_vals, pop_fst_vals]
 
 
-def get_all_pop_fst(pop_names, dpth_pass_comps, freqs_dict):
-    # dpth_pass_comps = list(dpth_pass_comps)
-    pop_fst_vals = [None] * len(dpth_pass_comps)
-
-    for comp in dpth_pass_comps:
-        comp_index = dpth_pass_comps.index(comp)
-        pop1 = pop_names[comp[0]]
-        pop2 = pop_names[comp[1]]
-        pop1_pq = freqs_dict[pop1]
-        pop2_pq = freqs_dict[pop2]
-        pops_dxy = get_dxy(pop1_pq[0], pop2_pq[0])
-        if pops_dxy > 0:
-            pops_fst = get_fst(pop1_pq[0], pop2_pq[0], pops_dxy)
-            pop_fst_vals[comp_index] = pops_fst
-        else:
-            pop_fst_vals[comp_index] = None
-
-    # print(pos, "get_all_pop_pit_dxy", tracemalloc.get_traced_memory())
-
-    return pop_fst_vals
+# def get_all_pop_fst(pop_names, dpth_pass_comps, freqs_dict):
+#     # dpth_pass_comps = list(dpth_pass_comps)
+#     pop_fst_vals = [None] * len(dpth_pass_comps)
+#
+#     for comp in dpth_pass_comps:
+#         comp_index = dpth_pass_comps.index(comp)
+#         pop1 = pop_names[comp[0]]
+#         pop2 = pop_names[comp[1]]
+#         pop1_pq = freqs_dict[pop1]
+#         pop2_pq = freqs_dict[pop2]
+#         pops_dxy = get_dxy(pop1_pq[0], pop2_pq[0])
+#         if pops_dxy > 0:
+#             pops_fst = get_fst(pop1_pq[0], pop2_pq[0], pops_dxy)
+#             pop_fst_vals[comp_index] = pops_fst
+#         else:
+#             pop_fst_vals[comp_index] = None
+#
+#     return pop_fst_vals
 
 
 def get_site_stats(alleles, count_list, pop_names, pop_dpth):
@@ -380,11 +342,7 @@ def get_site_stats(alleles, count_list, pop_names, pop_dpth):
     pop_dxy_vals = pairwise_stats[1]
     pop_D_vals = pairwise_stats[2]
 
-    pop_fst_vals = get_all_pop_fst(pop_names, dpth_pass_comps, freqs_dict)
-
-    print(pop_fst_vals)
-
-    # print(pos, "get_site_stats2", tracemalloc.get_traced_memory())
+    # pop_fst_vals = get_all_pop_fst(pop_names, dpth_pass_comps, freqs_dict)
 
     return [pop_piw_vals, pop_pit_vals, pop_dxy_vals, pop_D_vals]
 
@@ -394,8 +352,6 @@ def dict_to_vals(pop_dict):
     val_list = []
     for val in pop_dict.values():
         val_list.append(val)
-
-    # print(pos, "dict_to_vals", tracemalloc.get_traced_memory())
 
     return val_list
 
@@ -429,13 +385,11 @@ def stats_to_windows(curr_window_dict, curr_pos, w_max_pos, piw, pit, dxy, D, wi
                 w_end = w_max_pos + 1
             if (w_end - w_start) > w_slide:
                 range_key = range(w_start, w_end)
-                # **** for now, I will append vals, but consider using dicts to retain pop_names
+                # **** consider using dicts to retain pop_names
                 curr_window_dict[range_key][0].append(piw)
                 curr_window_dict[range_key][1].append(pit)
                 curr_window_dict[range_key][2].append(dxy)
                 curr_window_dict[range_key][3].append(D)
-
-        # print(pos, "stats_to_windows", tracemalloc.get_traced_memory())
 
         return curr_window_dict
 
