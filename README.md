@@ -6,10 +6,10 @@ The novelty of this software is in the computation of UPGMA trees based on the d
 
 To summarise d<sub>XY</sub> trees, the following statistics are reported:
 
-| Example                           | Statistic                  | Description                                                                               |
-| --------------------------------- |:--------------------------:|:-----------------------------------------------------------------------------------------:|
-| ![srb_tree_example](SRB_tree.png) | Shortest Root Branch (SRB) | The distance between the top of the tree, and the higher of the two outermost clades      |
-| IMAGE - Root Division example     | Root Division              | A numerical representation of the two outermost clades, when the tree is split at the top |
+| Example                                         | Statistic                  | Description                                                                               |
+| ----------------------------------------------- |:--------------------------:|:-----------------------------------------------------------------------------------------:|
+| ![srb_tree_example](SRB_tree.png)               | Shortest Root Branch (SRB) | The distance between the top of the tree, and the higher of the two outermost clades      |
+| ![Root Division example](root_division.png)     | Root Division              | A numerical representation of the two outermost clades, when the tree is split at the top |
 
 ## Preparing data for analysis
 The basic pipeline for preparing data for analysis is as follows:
