@@ -271,7 +271,7 @@ def get_da(p1, p2, dxy):
 
 # calculate piw across list of valid pops
 def get_all_pop_piw(pop_names, dpth_pass_pops, freqs_dict):
-    pop_piw_vals = [None] * len(pop_names)
+    pop_piw_vals = [0] * len(pop_names)
     for pop in dpth_pass_pops:
         pop = pop_names[pop]
         pop_index = pop_names.index(pop)
@@ -285,10 +285,10 @@ def get_all_pop_piw(pop_names, dpth_pass_pops, freqs_dict):
 # calculate stats for valid pops / comps
 def get_all_pop_pit_dxy(pop_names, dpth_pass_comps, freqs_dict):
     # dpth_pass_comps = list(dpth_pass_comps)
-    pop_pit_vals = [None] * len(dpth_pass_comps)
-    pop_dxy_vals = [None] * len(dpth_pass_comps)
-    pop_D_vals = [None] * len(dpth_pass_comps)
-    pop_fst_vals = [None] * len(dpth_pass_comps)
+    pop_pit_vals = [0] * len(dpth_pass_comps)
+    pop_dxy_vals = [0] * len(dpth_pass_comps)
+    pop_D_vals = [0] * len(dpth_pass_comps)
+    pop_fst_vals = [0] * len(dpth_pass_comps)
 
     for comp in dpth_pass_comps:
         comp_index = dpth_pass_comps.index(comp)
@@ -308,7 +308,7 @@ def get_all_pop_pit_dxy(pop_names, dpth_pass_comps, freqs_dict):
 
 # def get_all_pop_fst(pop_names, dpth_pass_comps, freqs_dict):
 #     # dpth_pass_comps = list(dpth_pass_comps)
-#     pop_fst_vals = [None] * len(dpth_pass_comps)
+#     pop_fst_vals = [0] * len(dpth_pass_comps)
 #
 #     for comp in dpth_pass_comps:
 #         comp_index = dpth_pass_comps.index(comp)
@@ -330,7 +330,7 @@ def get_site_stats(alleles, count_list, pop_names, pop_dpth):
     # calculate p and q for all pops
     freqs_dict = get_allele_freqs(alleles, count_list, pop_names)
     # make list of valid pops based on indices of pop_dpth
-    dpth_pass_pops = [i for i, e in enumerate(pop_dpth) if e != 0]
+    dpth_pass_pops = [i for i, e in enumerate(pop_dpth)]
     # calculate piw for valid pops
     pop_piw_vals = get_all_pop_piw(pop_names, dpth_pass_pops, freqs_dict)
 
@@ -456,8 +456,9 @@ def vals_to_pop_means(val_list):
 
 def get_site_trees(pop_dpth, distance_vals):
     pop_pairs = []
-    dpth_pass_pops = [i for i, e in enumerate(pop_dpth) if e != 0]
-    dxy_headers = itertools.combinations(dpth_pass_pops, 2)
+    dpth_pass_pops = len([i for i, e in enumerate(pop_dpth) if e != 0])
+    pop_combs = [i for i, e in enumerate(pop_dpth)]
+    dxy_headers = itertools.combinations(pop_combs, 2)
     for i, header in enumerate(dxy_headers):
         pop1 = header[0]
         pop2 = header[1]
@@ -494,7 +495,7 @@ def get_site_trees(pop_dpth, distance_vals):
     split = "".join(split)
 
     # return genomic position, root division summary, and tree height
-    return [split, tree_height, srb]
+    return [dpth_pass_pops, split, tree_height, srb]
 
 
 def get_site_tree_stats():
