@@ -436,6 +436,7 @@ def get_site_trees(pop_dpth, distance_vals):
     df = df.combine_first(df.T)
     # set diagonal to 0
     np.fill_diagonal(df.to_numpy(), 0)
+    tree_pops = df.columns.values
     # convert distance matrix to minimal representation for scipy linkage compatibility
     dm = squareform(df)
 
@@ -445,23 +446,26 @@ def get_site_trees(pop_dpth, distance_vals):
 
     # get maximum height at which UPGMA merges populations i.e. the tree height
     tree_height = max(clusters[0:, 2])
-    second_max = clusters[0:, 2][-2]
-    # shortest root branch = tree height - penultimate cluster height
-    # **** implement piw and Nei's D
-    srb = tree_height - second_max
+    if len(clusters) > 2:
+        second_max = clusters[0:, 2][-2]
+        # shortest root branch = tree height - penultimate cluster height
+        # **** implement piw and Nei's D
+        srb = tree_height - second_max
+    else:
+        srb = 0
 
     # split tree at root, yielding two clusters (root division analysis)
-    # population membership to each cluster is represented as 0 or 1
+    # population membership to each cluster is represented as 1 or 2
     split = list(shc.cut_tree(clusters, n_clusters=2)[0:, 0])
     split = [n + 1 for n in split]
+    rd_list = [0] * len(pop_dpth)
+    for i, e in enumerate(split):
+        rd_pop = tree_pops[i]
+        rd_list[rd_pop] = e
 
     # convert items in split list to strings, and join
-    split = list(map(str, split))
+    split = list(map(str, rd_list))
     split = "".join(split)
 
     # return genomic position, root division summary, and tree height
     return [dpth_pass_pops, split, tree_height, srb]
-
-
-def get_site_tree_stats():
-    pass
