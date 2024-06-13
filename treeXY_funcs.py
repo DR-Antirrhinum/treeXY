@@ -126,14 +126,14 @@ def check_read_depth(sync_count_list, min_allele_depth, min_depth, max_depth):
 
 def check_allele_num(sync_count_list, dpth_pass_list, min_allele_depth):
     # return number of alleles
-    # remove pops below threshold depth
+    # remove pops below threshold allele depth
     passing_dpth = [i for i, e in enumerate(dpth_pass_list) if e > 0]
     filtered_count_inds = [[i, sync_count_list[i]] for i in passing_dpth]
-    filtered_count_list = [i[1] for i in filtered_count_inds]
+    # filtered_count_list = [i[1] for i in filtered_count_inds]
 
     if len(filtered_count_inds) != 0:
         allele_inds = []
-        for i, count in filtered_count_inds:
+        for i, count in enumerate(sync_count_list):
             # increment with each allele > min_allele_depth
             allele_incr = 0
             for base_i, base in enumerate(count):
@@ -145,7 +145,7 @@ def check_allele_num(sync_count_list, dpth_pass_list, min_allele_depth):
         allele_inds = list(set(allele_inds))
 
         # sort alleles so major allele is first in list
-        tot_allele_counts = [sum(x) for x in zip(*filtered_count_list)]
+        tot_allele_counts = [sum(x) for x in zip(*sync_count_list)]
         max_allele_ind = [i for i, j in enumerate(tot_allele_counts) if j == max(tot_allele_counts)]
         curr_allele_ind = [i for i, e in enumerate(allele_inds) if e == max_allele_ind[0]]
         allele_inds.insert(0, allele_inds.pop(curr_allele_ind[0]))
@@ -154,10 +154,6 @@ def check_allele_num(sync_count_list, dpth_pass_list, min_allele_depth):
 
     else:
         return [dpth_pass_list, []]
-
-
-# def get_formatted_line(scaffold, position, ref_allele, count_list):
-#     pass
 
 
 def filter_triallelic(sync_count_list, scaff, pos, ref):
@@ -198,6 +194,7 @@ def filter_low_depth(sync_count_list, ad_cutoff):
 
 def get_allele_freqs(allele_inds, sync_count_list, names):
     pop_dict = {}
+    # **** first exclude pops with 0 depth
     for i, count in enumerate(sync_count_list):
         curr_pop = names[i]
         if len(allele_inds) == 1:
@@ -257,21 +254,9 @@ def get_da(p1, p2, dxy):
     return da
 
 
-# calculate FST for a given population pair
-# def get_fst(p1, p2, dxy):
-#     piw1 = get_piw(p1)
-#     piw2 = get_piw(p2)
-#     piw_bar = (piw1 + piw2) / 2
-#     da = dxy - piw_bar
-#     pi_tot = dxy + piw_bar
-#     fst = da / pi_tot
-#
-#     return fst
-
-
 # calculate piw across list of valid pops
 def get_all_pop_piw(pop_names, dpth_pass_pops, freqs_dict):
-    pop_piw_vals = [0] * len(pop_names)
+    pop_piw_vals = [None] * len(pop_names)
     for pop in dpth_pass_pops:
         pop = pop_names[pop]
         pop_index = pop_names.index(pop)
@@ -285,52 +270,34 @@ def get_all_pop_piw(pop_names, dpth_pass_pops, freqs_dict):
 # calculate stats for valid pops / comps
 def get_all_pop_pit_dxy(pop_names, dpth_pass_comps, freqs_dict):
     # dpth_pass_comps = list(dpth_pass_comps)
-    pop_pit_vals = [0] * len(dpth_pass_comps)
-    pop_dxy_vals = [0] * len(dpth_pass_comps)
-    pop_D_vals = [0] * len(dpth_pass_comps)
-    pop_fst_vals = [0] * len(dpth_pass_comps)
+    poss_comps = list(itertools.combinations([int(i) - 1 for i in pop_names], 2))
+
+    pop_pit_vals = [None] * len(poss_comps)
+    pop_dxy_vals = [None] * len(poss_comps)
+    pop_da_vals = [None] * len(poss_comps)
+    pop_fst_vals = [None] * len(poss_comps)
 
     for comp in dpth_pass_comps:
-        comp_index = dpth_pass_comps.index(comp)
+        comp_index = poss_comps.index(comp)
         pop1 = pop_names[comp[0]]
         pop2 = pop_names[comp[1]]
         pop1_pq = freqs_dict[pop1]
         pop2_pq = freqs_dict[pop2]
         pops_pit = get_pit(pop1_pq[0], pop2_pq[0], pop1_pq[1], pop2_pq[1])
         pops_dxy = get_dxy(pop1_pq[0], pop2_pq[0])
-        pops_D = get_da(pop1_pq[0], pop2_pq[0], pops_dxy)
+        pops_da = get_da(pop1_pq[0], pop2_pq[0], pops_dxy)
         pop_pit_vals[comp_index] = pops_pit
         pop_dxy_vals[comp_index] = pops_dxy
-        pop_D_vals[comp_index] = pops_D
+        pop_da_vals[comp_index] = pops_da
 
-    return [pop_pit_vals, pop_dxy_vals, pop_D_vals, pop_fst_vals]
-
-
-# def get_all_pop_fst(pop_names, dpth_pass_comps, freqs_dict):
-#     # dpth_pass_comps = list(dpth_pass_comps)
-#     pop_fst_vals = [0] * len(dpth_pass_comps)
-#
-#     for comp in dpth_pass_comps:
-#         comp_index = dpth_pass_comps.index(comp)
-#         pop1 = pop_names[comp[0]]
-#         pop2 = pop_names[comp[1]]
-#         pop1_pq = freqs_dict[pop1]
-#         pop2_pq = freqs_dict[pop2]
-#         pops_dxy = get_dxy(pop1_pq[0], pop2_pq[0])
-#         if pops_dxy > 0:
-#             pops_fst = get_fst(pop1_pq[0], pop2_pq[0], pops_dxy)
-#             pop_fst_vals[comp_index] = pops_fst
-#         else:
-#             pop_fst_vals[comp_index] = None
-#
-#     return pop_fst_vals
+    return [pop_pit_vals, pop_dxy_vals, pop_da_vals, pop_fst_vals]
 
 
 def get_site_stats(alleles, count_list, pop_names, pop_dpth):
     # calculate p and q for all pops
     freqs_dict = get_allele_freqs(alleles, count_list, pop_names)
     # make list of valid pops based on indices of pop_dpth
-    dpth_pass_pops = [i for i, e in enumerate(pop_dpth)]
+    dpth_pass_pops = [i for i, e in enumerate(pop_dpth) if e > 0]
     # calculate piw for valid pops
     pop_piw_vals = get_all_pop_piw(pop_names, dpth_pass_pops, freqs_dict)
 
@@ -340,11 +307,9 @@ def get_site_stats(alleles, count_list, pop_names, pop_dpth):
     pairwise_stats = get_all_pop_pit_dxy(pop_names, dpth_pass_comps, freqs_dict)
     pop_pit_vals = pairwise_stats[0]
     pop_dxy_vals = pairwise_stats[1]
-    pop_D_vals = pairwise_stats[2]
+    pop_da_vals = pairwise_stats[2]
 
-    # pop_fst_vals = get_all_pop_fst(pop_names, dpth_pass_comps, freqs_dict)
-
-    return [pop_piw_vals, pop_pit_vals, pop_dxy_vals, pop_D_vals]
+    return [pop_piw_vals, pop_pit_vals, pop_dxy_vals, pop_da_vals]
 
 
 def dict_to_vals(pop_dict):
@@ -356,13 +321,13 @@ def dict_to_vals(pop_dict):
     return val_list
 
 
-def stats_to_windows(curr_window_dict, curr_pos, w_max_pos, piw, pit, dxy, D, window_size, window_overlap):
+def stats_to_windows(curr_window_dict, curr_pos, w_max_pos, piw, pit, dxy, da, window_size, window_overlap):
     # if window_size >= w_max_pos, there will only be one key encompassing the whole scaffold
     if window_size >= w_max_pos:
         curr_window_dict[range(1, w_max_pos + 1)][0].append(piw)
         curr_window_dict[range(1, w_max_pos + 1)][1].append(pit)
         curr_window_dict[range(1, w_max_pos + 1)][2].append(dxy)
-        curr_window_dict[range(1, w_max_pos + 1)][3].append(D)
+        curr_window_dict[range(1, w_max_pos + 1)][3].append(da)
 
         return curr_window_dict
 
@@ -389,7 +354,7 @@ def stats_to_windows(curr_window_dict, curr_pos, w_max_pos, piw, pit, dxy, D, wi
                 curr_window_dict[range_key][0].append(piw)
                 curr_window_dict[range_key][1].append(pit)
                 curr_window_dict[range_key][2].append(dxy)
-                curr_window_dict[range_key][3].append(D)
+                curr_window_dict[range_key][3].append(da)
 
         return curr_window_dict
 
