@@ -1,10 +1,10 @@
 # treeXY
 ## Introduction
-treeXY is a software tool for exploring patterns of genetic diversity between groups of taxa mapped to a common reference genome. In its simplest use case, treeXY computes a series of population genetic measures (d<sub>XY</sub>, π<sub>w</sub>, F<sub>ST</sub>, and D) between all taxa in a pairwise manner. These stats are reported in window averages of a user-defined size and overlap.
+treeXY is a software tool for exploring patterns of genetic diversity between groups of taxa mapped to a common reference genome. In its simplest use case, treeXY computes a series of population genetic measures (_d<sub>XY</sub>_, _π<sub>w</sub>_, _F<sub>ST</sub>_, and _D_) between all taxa in a pairwise manner. These stats are reported in window averages of a user-defined size and overlap.
 
-The novelty of this software is in the computation of UPGMA trees based on the d<sub>XY</sub> distribution at biallelic sites within the genome. These trees facilitate the summary of genetic distance relationships between multiple taxa simultaneously, allowing for the identification of genomic regions showing elevated divergence between groups of taxa, which may underlie genetic barriers. An advantage of d<sub>XY</sub> is that, unlike F<sub>ST</sub>, it is insensitive to changes to π<sub>w</sub> following a population split. This means that it will not be confounded by population effects such as historical selective sweeps, or population bottlenecks.
+The novelty of this software is in the computation of UPGMA trees based on the _d<sub>XY</sub>_ distribution at biallelic sites within the genome. These trees facilitate the summary of genetic distance relationships between multiple taxa simultaneously, allowing for the identification of genomic regions showing elevated divergence between groups of taxa, which may underlie genetic barriers. An advantage of _d<sub>XY</sub>_ is that, unlike _F<sub>ST</sub>_, it is insensitive to changes to _π<sub>w</sub>_ following a population split. This means that it will not be confounded by population effects such as historical selective sweeps, or population bottlenecks.
 
-To summarise d<sub>XY</sub> trees, the following statistics are reported:
+To summarise _d<sub>XY</sub>_ trees, the following statistics are reported:
 
 | Example                                         | Statistic                  | Description                                                                               |
 | ----------------------------------------------- |:--------------------------:|:-----------------------------------------------------------------------------------------:|
@@ -52,9 +52,9 @@ A Dockerfile is included for ease of installation. Alternatively, use a Python d
 
 `--write_sync` Write sites passing all treeXY depth checks to a new SYNC file.
 
-`--dxy_trees` If specified, treeXY will run hierarchical clustering to generate dXY trees at all valid biallelic sites. dXY tree statistics, incuding Tree Height, Shortest Root Branch (SRB), and Root Division representation, will be written to a separate CSV file. See Introduction for more details.
+`--dxy_trees` If specified, treeXY will run hierarchical clustering to generate _d<sub>XY</sub>_ trees at all valid biallelic sites. _d<sub>XY</sub>_ tree statistics, incuding Tree Height, Shortest Root Branch (SRB), and Root Division representation, will be written to a separate CSV file. See Introduction for more details.
 
-`--d_trees` As above, except using Nei's D.
+`--d_trees` As above, except using Nei's _D_.
 
 ## Usage example
 treeXY has been used to study barriers to gene flow between two subspecies of the snapdragon *Antirrhinum majus*, *A. m. pseudomajus* and *A. m. striatum* (Richardson *et al.*, manuscript in preparation).
