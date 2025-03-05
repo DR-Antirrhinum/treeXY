@@ -1,4 +1,5 @@
 import itertools
+import argparse
 import math as maths
 import numpy as np
 import pandas as pd
@@ -20,6 +21,37 @@ def read_pop_names(in_file):
             pop_names = [str(i) for i in range(1, len(sc) + 1)]
 
             return pop_names
+
+
+def range_limited_int_type(arg):
+    # type function for argparse: an int > 0
+    try:
+        f = int(arg)
+    except ValueError:
+        raise argparse.ArgumentTypeError("Must be an integer")
+    if f <= 0:
+        raise argparse.ArgumentTypeError("Argument must be > " + str(0))
+    return f
+
+
+def positive_int_type(arg):
+    # type function for argparse: an int >= 0
+    try:
+        f = int(arg)
+    except ValueError:
+        raise argparse.ArgumentTypeError("Must be an integer")
+    if f < 0:
+        raise argparse.ArgumentTypeError("Argument must be positive")
+    return f
+
+
+def check_args(min_dpth, max_dpth, min_ap, n_pops, w_size, w_over):
+    if max_dpth < min_dpth:
+        raise ValueError("max depth (-M) must not be greater than min depth (-m)")
+    if min_ap > n_pops:
+        raise ValueError("min allele pops (-A) must not be greater than the total number of taxa in the SYNC file")
+    if w_over >= w_size:
+        raise ValueError("overlap between adjacent windows (-o) must be smaller than the window size (-w)")
 
 
 def initialise_windows(in_file, w_size, w_overlap):

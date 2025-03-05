@@ -15,22 +15,22 @@ parser.add_argument("-f", "--file",
                     metavar="sync_file")
 
 parser.add_argument("-m", "--min_depth",
-                    type=int,
+                    type=tf.range_limited_int_type,
                     default=15,
                     help="Minimum depth, across all populations, for a site to be included")
 
 parser.add_argument("-M", "--max_depth",
-                    type=int,
+                    type=tf.range_limited_int_type,
                     default=200,
                     help="Maximum depth, across all populations, for a site to be included")
 
 parser.add_argument("-a", "--min_allele_depth",
-                    type=int,
+                    type=tf.range_limited_int_type,
                     default=2,
                     help="Minimum depth for an allele call")
 
 parser.add_argument("-A", "--min_allele_pops",
-                    type=int,
+                    type=tf.range_limited_int_type,
                     default=2,
                     help="Minimum number of populations required for an allele call")
 
@@ -40,12 +40,12 @@ parser.add_argument("--whole_scaffold",
                          "Take an average across all passing sites on the scaffold, rather than using windows")
 
 parser.add_argument("-w", "--window_size",
-                    type=int,
+                    type=tf.range_limited_int_type,
                     default=10000,
                     help="Size of sliding window")
 
 parser.add_argument("-o", "--window_overlap",
-                    type=int,
+                    type=tf.positive_int_type,
                     default=9000,
                     help="Overlap of consecutive sliding windows")
 
@@ -80,6 +80,16 @@ args = parser.parse_args()
 # treeXY #
 ##########
 
+# write command line arguments to stdout
+for arg in vars(args):
+    print(str(arg) + ": " + str(getattr(args, arg)))
+
+pop_names = tf.read_pop_names(args.file)
+n_pops = len(pop_names)
+
+# arg tests
+tf.check_args(args.min_depth, args.max_depth, args.min_allele_pops, n_pops, args.window_size, args.window_overlap)
+
 # generate file names from args
 sync_name = args.file
 sync_name = sync_name.split(".")[0]
@@ -103,10 +113,8 @@ if args.dxy_trees:
 if args.d_trees:
     site_args = args.min_depth, args.max_depth, args.min_allele_depth, args.min_allele_pops
     site_args = list(map(str, site_args))
-    D_tree_file_name = sync_name + "_" + "_".join(site_args) + "_treeXY_topos_D.csv"
-    open(D_tree_file_name, "w").close()
-
-pop_names = tf.read_pop_names(args.file)
+    da_tree_file_name = sync_name + "_" + "_".join(site_args) + "_treeXY_topos_da.csv"
+    open(da_tree_file_name, "w").close()
 
 # open window output file
 with open(w_file_name, "w") as out_file:
@@ -115,12 +123,12 @@ with open(w_file_name, "w") as out_file:
     pit_headers = ["piT_" + name for name in pit_headers]
     dxy_headers = ["_".join(pair) for pair in list(itertools.combinations(pop_names, 2))]
     dxy_headers = ["dXY_" + name for name in dxy_headers]
-    D_headers = ["_".join(pair) for pair in list(itertools.combinations(pop_names, 2))]
-    D_headers = ["D_" + name for name in D_headers]
+    da_headers = ["_".join(pair) for pair in list(itertools.combinations(pop_names, 2))]
+    da_headers = ["da_" + name for name in da_headers]
     # write header
     out_file.write("scaffold" + "," + "window_start" + "," + "window_end" + "," + "n_window_sites" + "," +
                    ",".join(piw_headers) + "," + ",".join(pit_headers) + "," + ",".join(dxy_headers) + "," +
-                   ",".join(D_headers) + "\n")
+                   ",".join(da_headers) + "\n")
 
 # initialise dict to store window averages
 window_details = tf.initialise_windows(args.file, args.window_size, args.window_overlap)
@@ -172,8 +180,6 @@ with open(args.file) as file:
                     alleles = allele_stats[1]
 
             # line with filtered counts
-            # **** write function for consistency
-            # **** having both site_counts and count_list is confusing
             f_count_list = []
             for pop_count in count_list:
                 pop_count = [str(i) for i in pop_count]
@@ -191,38 +197,37 @@ with open(args.file) as file:
                 pos_piw_vals = tf.get_site_stats(alleles, count_list, pop_names, pop_dpth)[0]
                 pos_pit_vals = tf.get_site_stats(alleles, count_list, pop_names, pop_dpth)[1]
                 pos_dxy_vals = tf.get_site_stats(alleles, count_list, pop_names, pop_dpth)[2]
-                pos_D_vals = tf.get_site_stats(alleles, count_list, pop_names, pop_dpth)[3]
+                pos_da_vals = tf.get_site_stats(alleles, count_list, pop_names, pop_dpth)[3]
                 # stats to window(s)
                 window_dict = tf.stats_to_windows(window_dict, pos, max_pos, pos_piw_vals, pos_pit_vals, pos_dxy_vals,
-                                                  pos_D_vals, args.window_size, args.window_overlap)
+                                                  pos_da_vals, args.window_size, args.window_overlap)
 
-            # **** This won't work if window > scaffold size
-            smallest_w = next(iter(window_dict))
+            lowest_w = next(iter(window_dict))
             keys_to_del = []
 
-            # **** does this work if windows step is 1?
-            if int(pos) >= max(smallest_w):
-                w_average = tf.average_window(smallest_w, window_dict)
+            if int(pos) >= max(lowest_w):
+                w_average = tf.average_window(lowest_w, window_dict)
                 if w_average:
-                    tf.write_window(scaff, smallest_w, w_average, w_file_name)
-                keys_to_del.append(smallest_w)
+                    tf.write_window(scaff, lowest_w, w_average, w_file_name)
+                keys_to_del.append(lowest_w)
 
             # delete keys from window_dict if the window has already been written (to save memory)
             for key in keys_to_del:
                 del window_dict[key]
 
             # write tree stats for biallelic sites
+            n_dpth_passing_pops = len([i for i in pop_dpth if i != 0])
             if args.dxy_trees:
-                if len(alleles) > 1:
+                if len(alleles) > 1 and n_dpth_passing_pops > 1:
                     with open(dxy_tree_file_name, "a") as tree_file:
                         tree_stats = tf.get_site_trees(pop_dpth, pos_dxy_vals)
                         tree_stats = [str(i) for i in tree_stats]
                         tree_file.write(",".join([scaff, pos, ",".join(tree_stats)]) + "\n")
 
             if args.d_trees:
-                if len(alleles) > 1:
-                    with open(D_tree_file_name, "a") as tree_file:
-                        tree_stats = tf.get_site_trees(pop_dpth, pos_D_vals)
+                if len(alleles) > 1 and n_dpth_passing_pops > 1:
+                    with open(da_tree_file_name, "a") as tree_file:
+                        tree_stats = tf.get_site_trees(pop_dpth, pos_da_vals)
                         tree_stats = [str(i) for i in tree_stats]
                         tree_file.write(",".join([scaff, pos, ",".join(tree_stats)]) + "\n")
 
