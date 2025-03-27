@@ -25,7 +25,7 @@ graph LR;
 The input for treeXY is a Popoolation2 SYNC file. This is a compact representation of the common Pileup format, which contains allele depth information across genomic regions.
 
 ## Installation
-treeXY is a command line tool tested on MacOS (Ventura 13.4.1) and a Linux HPC environment (AlmaLinux 9.5). It requires Python3, along with numpy, pandas, and scipy. These dependencies have been tested using the following versions:
+treeXY is a command line tool tested on MacOS (Ventura 13.4.1) environment. It requires Python3, along with numpy, pandas, and scipy. These dependencies have been tested using the following versions:
 - `python-3.9`
 - `numpy-1.23.4`
 - `pandas-1.5.1`
@@ -48,10 +48,7 @@ To test the software is working, you can carry out a quick analysis of the inclu
 This should run in under a minute, and yield two text files:
 
 - *test_data_15_200_2_2_100_50_treeXY.csv*, containing 100bp window averages of population genetic statistics, with 50bp overlaps
-- *test_data_15_200_2_2_treeXY_topos_dXY.csv*, containing dXY SNP trees described in the Introduction
-
-### HPC Installation
-For installation on an HPC environment, a singularity image has been provided. 
+- *test_data_15_200_2_2_treeXY_topos_dXY.csv*, containing _d<sub>XY</sub>_ SNP trees described in the Introduction
 
 ## Arguments
 `-f` `--file` Input SYNC file to be processed.
