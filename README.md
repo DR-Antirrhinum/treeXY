@@ -74,4 +74,4 @@ This should run in under a minute, and yield two text files:
 `--d_trees` As above, except using Nei's _D_.
 
 ## Usage example
-treeXY has been used to study barriers to gene flow between two subspecies of the snapdragon *Antirrhinum majus*, *A. m. pseudomajus* and *A. m. striatum* (Richardson *et al.*, preprint available at https://www.biorxiv.org/content/10.1101/2025.02.12.637406v1). Companions scripts for this analysis can be found in the phylogenetic_forests repository.
+treeXY has been used to study barriers to gene flow between two subspecies of the snapdragon *Antirrhinum majus*, *A. m. pseudomajus* and *A. m. striatum* (Richardson *et al.*, preprint available at https://www.biorxiv.org/content/10.1101/2025.02.12.637406v1). Companions scripts for this analysis can be found in the phylogenetic_forests repository (https://github.com/DR-Antirrhinum/phylogenetic-forests).
